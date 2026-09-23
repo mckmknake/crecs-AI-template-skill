@@ -1,0 +1,13 @@
+{
+  "name": "crecs-template-studio",
+  "displayName": "CRECS Property Template",
+  "version": "1.0.0",
+  "description": "Design and edit the shared CRECS Elementor property-page template by conversation, then export importable Elementor JSON.",
+  "license": "proprietary",
+  "keywords": [
+    "crecs",
+    "elementor",
+    "wordpress",
+    "commercial-real-estate"
+  ]
+}

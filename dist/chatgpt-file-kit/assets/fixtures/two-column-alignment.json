@@ -1,0 +1,69 @@
+{
+  "content": [
+    {
+      "id": "f2a0001",
+      "elType": "section",
+      "isInner": false,
+      "settings": { "_title": "Two-column field alignment" },
+      "elements": [
+        {
+          "id": "f2a0002",
+          "elType": "column",
+          "isInner": false,
+          "settings": { "_column_size": 100, "_inline_size": null },
+          "elements": [
+            {
+              "id": "f2a0003",
+              "elType": "widget",
+              "widgetType": "crecs_property_data",
+              "isInner": false,
+              "settings": { "slug": "" },
+              "elements": []
+            },
+            {
+              "id": "f2a0004",
+              "elType": "widget",
+              "widgetType": "crecs_property_meta_tags",
+              "isInner": false,
+              "settings": {},
+              "elements": []
+            },
+            {
+              "id": "f2a0005",
+              "elType": "widget",
+              "widgetType": "crecs_property_fields",
+              "isInner": false,
+              "settings": {
+                "layout_type": "two_column",
+                "show_label": "yes",
+                "first_column_alignment": "left",
+                "second_column_alignment": "right",
+                "field_label_typography_typography": "custom",
+                "field_label_typography_font_weight": "600",
+                "field_label_typography_text_transform": "uppercase"
+              },
+              "elements": []
+            },
+            {
+              "id": "f2a0006",
+              "elType": "widget",
+              "widgetType": "crecs_property_details",
+              "isInner": false,
+              "settings": {
+                "layout_type": "two_column",
+                "show_label": "yes",
+                "first_column_alignment": "left",
+                "second_column_alignment": "right"
+              },
+              "elements": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "page_settings": [],
+  "version": "0.4",
+  "title": "Fixture — two-column field alignment",
+  "type": "page"
+}

@@ -1,0 +1,4 @@
+# Normalize line endings: store LF in the repository, check out the platform default
+# in the working tree. Without this the repo mixes CRLF and LF depending on who
+# committed and from which OS.
+* text=auto

@@ -1,0 +1,3 @@
+{ "content": [ { "elType": "section", "elements": [ ] }, 
+  // Elementor exports carry no comments, and a trailing comma is not JSON
+] ,

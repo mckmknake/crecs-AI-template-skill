@@ -1,0 +1,23 @@
+# Compiled Python bytecode. The skill is distributed as source and runs from it;
+# __pycache__ is a by-product of running the test suite, and the same modules get
+# compiled once per interpreter version, so committing it means a diff every time
+# anyone runs the tests on a different Python.
+__pycache__/
+*.py[cod]
+
+# Archives built at the repository root. dist/claude-web/crecs-property-template.zip
+# is deliberately NOT covered: it is a deliverable, and the package's own
+# MANIFEST.sha256 lists it.
+/*.zip
+
+# OS junk
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~

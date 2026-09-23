@@ -1,0 +1,34 @@
+{
+  "_about": "TEST FIXTURE ONLY. A target profile that is complete for the shipped base template, so tests can exercise a clean export path. It declares popup ids 4554 and 4646 — the ids the reference site used — which is acceptable HERE because these tests assert tool behaviour against the shipped template on a fictional site. The shipped assets/target-profile.example.json must never do this: it did once, and anyone who copied it and filled in only site_host and preview_slug got a clean validation and two buttons that opened nothing. That was delivery-3 defect D3-B2. Do not copy this file for a real site; copy the example and retarget the buttons with `popup --set`.",
+
+  "name": "Test fixture (not a real site)",
+
+  "site_host": "fixture.test",
+
+  "preview_slug": "a-real-slug-on-this-site",
+
+  "popups": {
+    "4554": "Talk to an advisor (fixture: the reference site's own id, see _about)",
+    "4646": "Request information (fixture: the reference site's own id, see _about)"
+  },
+
+  "media": {},
+
+  "templates": {},
+
+  "fonts": ["Inter", "Montserrat", "Raleway"],
+
+  "example_slugs": [
+    "hwy-380-fm-653-farmersville-tx-75442"
+  ],
+
+  "forbidden_literals": [
+    "Farmersville 380 Business Park",
+    "Hwy 380 & FM 653",
+    "hwy-380-fm-653-farmersville-tx-75442"
+  ],
+
+  "allow_hosts": [],
+
+  "notes": "Test fixture. See _about before reusing."
+}

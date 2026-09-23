@@ -1,0 +1,50 @@
+{
+  "_about": "Target profile: the handful of values that only mean something on one site. Copy this file, fill it in for the client, and pass it with --profile. It holds NO secrets — every value here is already public on the client's own site. Never put an API token, password or key in it; the tool refuses a profile whose keys look like credentials.",
+
+  "name": "Example client (copy this file and edit it)",
+
+  "site_host": "example-client.test",
+
+  "preview_slug": "REPLACE-WITH-A-REAL-PROPERTY-SLUG-ON-THIS-SITE",
+
+  "_preview_slug_note": "The crecs_property_data widget's `slug` control. On a /property/{slug} URL the widget reads the slug from the URL; in the Elementor editor and on every other URL it falls back to this value. Leave it empty and the editor preview resolves no property. Use any real, published property slug on the client's site — it is a design-time preview target, not the property the page will serve.",
+
+  "popups": {
+    "REPLACE-WITH-A-POPUP-ID-ON-THIS-SITE": "Talk to an advisor — the key must be the client's own Elementor Pro popup id",
+    "REPLACE-WITH-ANOTHER-POPUP-ID": "Request information — the key must be the client's own Elementor Pro popup id"
+  },
+
+  "_popups_note": "Elementor Pro popup post ids referenced by the template's button bindings. The KEY is the popup id on THIS site; the value is only a label for humans. Declaring an id asserts that the popup exists here, so these ship as placeholders on purpose: this file used to carry the reference site's own ids 4554 and 4646, and anyone who copied it without editing got a clean validation and two buttons that opened nothing. Fill in the real ids, then point each button at one with `popup --set`. The tool never renumbers an id for you, because guessing would aim a button at whatever happens to carry that number.",
+
+  "media": {},
+
+  "_media_note": "Attachment ids the template references, once the corresponding files exist in the client's own media library. The shipped base template carries no media, so this map is normally empty.",
+
+  "templates": {},
+
+  "_templates_note": "Elementor library template ids referenced by a shortcode, if any.",
+
+  "fonts": ["Inter", "Montserrat", "Raleway"],
+
+  "_fonts_note": "Font families the template asks for. The target site has to be able to load them. These three come from the reference design and are a preference, not a requirement.",
+
+  "example_slugs": [
+    "hwy-380-fm-653-farmersville-tx-75442"
+  ],
+
+  "_example_slugs_note": "Slugs that belong to somebody else's property. If one of these ends up in the loader, the validator raises E-FROZEN-SLUG rather than letting another client's property ship inside the template.",
+
+  "forbidden_literals": [
+    "Farmersville 380 Business Park",
+    "Hwy 380 & FM 653",
+    "hwy-380-fm-653-farmersville-tx-75442"
+  ],
+
+  "_forbidden_literals_note": "Strings that must never be written into a setting as static text. Property facts belong in the CRE Cloud data and reach the page through the crecs-property dynamic tag, so that one template serves every property. Add the client's own example property here too while you work on their template.",
+
+  "allow_hosts": [],
+
+  "_allow_hosts_note": "Extra hosts whose assets are acceptable, beyond site_host. A CDN, for example.",
+
+  "notes": "Fill in site_host, preview_slug and popups before asking for a ready export; those three are what block it."
+}

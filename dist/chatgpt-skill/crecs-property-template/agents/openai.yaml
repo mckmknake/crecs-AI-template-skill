@@ -1,0 +1,9 @@
+# Optional UI metadata for the ChatGPT surfaces, per
+# https://learn.chatgpt.com/docs/build-skills (consulted 2026-09-18).
+# SKILL.md remains the only required file.
+interface:
+  display_name: "CRECS Property Template"
+  short_description: "Design the shared CRECS Elementor property page and export its JSON."
+
+policy:
+  allow_implicit_invocation: true

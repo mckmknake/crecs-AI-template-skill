@@ -1,0 +1,581 @@
+{
+  "_about": "The crecs-property dynamic tag param_name universe, generated from Crecs_Functions::crecs_parse_property_data(). The editor dropdown is a per-property subset of this list: the tag keeps only non-empty string or numeric values, so booleans and collections never appear even though they are in the universe.",
+  "commented_out": [
+    {
+      "line": 3411,
+      "param_name": "total_sf"
+    },
+    {
+      "line": 3419,
+      "param_name": "sf_available"
+    },
+    {
+      "line": 3427,
+      "param_name": "min_contiguous_sf"
+    },
+    {
+      "line": 3435,
+      "param_name": "max_contiguous_sf"
+    },
+    {
+      "line": 3443,
+      "param_name": "land_sf"
+    },
+    {
+      "line": 3456,
+      "param_name": "size-total_acres"
+    },
+    {
+      "line": 3471,
+      "param_name": "rates_text"
+    },
+    {
+      "line": 3477,
+      "param_name": "rates"
+    },
+    {
+      "line": 3507,
+      "param_name": "attachments_parsed"
+    }
+  ],
+  "contract": {
+    "control": "param_name",
+    "dynamic_reason": "The dropdown is rebuilt per editor load from the property held in the PHP session, and only non-empty scalar keys survive the filter. Two properties of different types therefore expose different subsets of this universe. Treat the list below as the universe, never as a fixed enum.",
+    "is_dynamic": true,
+    "label_transform": "ucwords( str_replace( '_', ' ', str_replace( '-', ': ', key ) ) )",
+    "option_filter": "value !== null && ( is_string( value ) || is_numeric( value ) )",
+    "option_source": "Crecs_Functions::crecs_parse_property_data( $_SESSION[\"property\"] )",
+    "tag_name": "crecs-property"
+  },
+  "counts": {
+    "commented_out": 9,
+    "derived_or_formatted": 9,
+    "live": 51,
+    "universe_total": 60
+  },
+  "generated_by": "tools/crecs-template-studio/build-references.js",
+  "params": [
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3271,
+      "note": null,
+      "param_name": "property_id",
+      "reads": [
+        "id"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3274,
+      "note": null,
+      "param_name": "property_name",
+      "reads": [
+        "property_name"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3279,
+      "note": null,
+      "param_name": "property_url_slug",
+      "reads": [
+        "slug"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "concatenation",
+      "line": 3280,
+      "note": null,
+      "param_name": "property_url",
+      "reads": [
+        "slug"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3285,
+      "note": null,
+      "param_name": "property_headline",
+      "reads": [
+        "headline"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3289,
+      "note": "Boolean value: fails the is_string/is_numeric filter, so it never appears in the dropdown.",
+      "param_name": "do_not_display_property_address",
+      "reads": [
+        "do_not_display_property_address"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3293,
+      "note": null,
+      "param_name": "property_description",
+      "reads": [
+        "description"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3297,
+      "note": null,
+      "param_name": "address-street_address",
+      "reads": [
+        "street_address1"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3301,
+      "note": null,
+      "param_name": "address-street_address2",
+      "reads": [
+        "street_address2"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3305,
+      "note": null,
+      "param_name": "address-city",
+      "reads": [
+        "city->name"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3309,
+      "note": null,
+      "param_name": "address-state",
+      "reads": [
+        "state->name"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3313,
+      "note": null,
+      "param_name": "address-market",
+      "reads": [
+        "market->name"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3317,
+      "note": null,
+      "param_name": "address-sub_market",
+      "reads": [
+        "sub_market->name"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3321,
+      "note": null,
+      "param_name": "address-zip",
+      "reads": [
+        "zipcode"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "concatenation",
+      "line": 3326,
+      "note": null,
+      "param_name": "address-full_address",
+      "reads": [
+        "street_address1",
+        "city->name",
+        "state->name",
+        "zipcode"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "concatenation",
+      "line": 3331,
+      "note": null,
+      "param_name": "address-city,_state_zip",
+      "reads": [
+        "city->name",
+        "state->name",
+        "zipcode"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3335,
+      "note": null,
+      "param_name": "property_type",
+      "reads": [
+        "property_type->name"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3339,
+      "note": null,
+      "param_name": "property_category",
+      "reads": [
+        "property_type->category"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "concatenation",
+      "line": 3344,
+      "note": null,
+      "param_name": "property_type_category",
+      "reads": [
+        "property_type->name",
+        "property_type->category"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3348,
+      "note": null,
+      "param_name": "map-lat",
+      "reads": [
+        "lat"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3352,
+      "note": null,
+      "param_name": "map-lng",
+      "reads": [
+        "lng"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3356,
+      "note": null,
+      "param_name": "property_banner_text",
+      "reads": [
+        "banner_text"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3360,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "photos",
+      "reads": [
+        "photos"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3364,
+      "note": null,
+      "param_name": "video_url",
+      "reads": [
+        "video_url"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3368,
+      "note": null,
+      "param_name": "property_site",
+      "reads": [
+        "property_site"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3372,
+      "note": "Boolean value: fails the is_string/is_numeric filter, so it never appears in the dropdown.",
+      "param_name": "user_approved",
+      "reads": [
+        "user_approved"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3376,
+      "note": null,
+      "param_name": "offering_mem",
+      "reads": [
+        "offering_mem"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3381,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "property_site_documents",
+      "reads": [
+        "property_site_documents"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3386,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "property_infos",
+      "reads": [
+        "property_infos"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3391,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "demographic",
+      "reads": [
+        "demographic"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3396,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "traffic",
+      "reads": [
+        "traffic"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3401,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "clients",
+      "reads": [
+        "clients"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3406,
+      "note": null,
+      "param_name": "property_sub_type",
+      "reads": [
+        "property_sub_type->name"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "number_format",
+      "line": 3414,
+      "note": null,
+      "param_name": "size-total_SF",
+      "reads": [
+        "total_sf"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "number_format",
+      "line": 3422,
+      "note": null,
+      "param_name": "size-available_SF",
+      "reads": [
+        "sf_available"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "number_format",
+      "line": 3430,
+      "note": null,
+      "param_name": "size-min_contiguous_SF",
+      "reads": [
+        "min_contiguous_sf"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "number_format",
+      "line": 3438,
+      "note": null,
+      "param_name": "size-max_contiguous_SF",
+      "reads": [
+        "max_contiguous_sf"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": "number_format",
+      "line": 3446,
+      "note": null,
+      "param_name": "size-land_SF",
+      "reads": [
+        "land_sf_parsed"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3451,
+      "note": null,
+      "param_name": "size-total_available_SF",
+      "reads": [
+        "available_text"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3461,
+      "note": null,
+      "param_name": "size-available_acres",
+      "reads": [
+        "available_acres"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3466,
+      "note": null,
+      "param_name": "property_class",
+      "reads": [
+        "property_class"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3482,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "rates",
+      "reads": [
+        "rates_array"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3487,
+      "note": null,
+      "param_name": "flyer_url",
+      "reads": [
+        "flyer_url"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3492,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "team_members",
+      "reads": [
+        "team_members"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3497,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "suites",
+      "reads": [
+        "suites"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3502,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "attachments",
+      "reads": [
+        "attachments"
+      ]
+    },
+    {
+      "bindable_scalar": false,
+      "derivation": null,
+      "line": 3512,
+      "note": "Collection value: present in the universe, never selectable in the dropdown (fails the scalar filter).",
+      "param_name": "sitemap_urls",
+      "reads": [
+        "sitemap_urls"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3517,
+      "note": null,
+      "param_name": "map-GEO_data",
+      "reads": [
+        "geodata"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3522,
+      "note": null,
+      "param_name": "map-street_view_POV",
+      "reads": [
+        "heading"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3527,
+      "note": null,
+      "param_name": "map-zoom_level",
+      "reads": [
+        "map_zoom_level"
+      ]
+    },
+    {
+      "bindable_scalar": true,
+      "derivation": null,
+      "line": 3532,
+      "note": null,
+      "param_name": "property-confidential_agreement",
+      "reads": [
+        "property_site_confidential_agreement"
+      ]
+    }
+  ],
+  "source": {
+    "file": "includes/crecs-functions.php",
+    "lines": "3267-3536",
+    "sha1": "fa36c344a83ce868ed2cd176523cccbaa7255280",
+    "symbol": "Crecs_Functions::crecs_parse_property_data()"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "content": [
+    {
+      "id": "f1a0001",
+      "elType": "section",
+      "isInner": false,
+      "settings": {
+        "_title": "Property Data"
+      },
+      "elements": [
+        {
+          "id": "f1a0002",
+          "elType": "column",
+          "isInner": false,
+          "settings": {
+            "_column_size": 100,
+            "_inline_size": null
+          },
+          "elements": [
+            {
+              "id": "f1a0003",
+              "elType": "widget",
+              "widgetType": "crecs_property_data",
+              "isInner": false,
+              "settings": {
+                "slug": ""
+              },
+              "elements": []
+            },
+            {
+              "id": "f1a0004",
+              "elType": "widget",
+              "widgetType": "crecs_property_meta_tags",
+              "isInner": false,
+              "settings": {},
+              "elements": []
+            },
+            {
+              "id": "f1a0005",
+              "elType": "widget",
+              "widgetType": "crecs_dynamic_field_data",
+              "isInner": false,
+              "settings": {
+                "collection": "property_name",
+                "form_field_prompt": "Property",
+                "form_field_id": "crecs-field-property-name"
+              },
+              "elements": []
+            },
+            {
+              "id": "f1b0002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "isInner": false,
+              "settings": {
+                "title": "Add Your Heading Text Here",
+                "__dynamic__": {
+                  "title": "[elementor-tag name=crecs-property settings=%7Bnope"
+                }
+              },
+              "elements": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "page_settings": [],
+  "version": "0.4",
+  "title": "Negative fixture — corrupt-binding",
+  "type": "page"
+}
