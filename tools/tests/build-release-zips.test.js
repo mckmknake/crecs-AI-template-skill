@@ -173,6 +173,39 @@ test('packages stale against the skill source stop the build', () => {
   }
 });
 
+test('the claude.ai archive is the upload itself, not a wrapper around it', () => {
+  // A client uploading to claude.ai gets this back when the shape is wrong:
+  //   "All files must be inside the top-level folder"
+  //   ".zip or .skill file must include a SKILL.md file"
+  // The uploader takes the archive as-is: one top-level folder, SKILL.md inside it. The
+  // first version of this script zipped every package directory, which for claude-web
+  // produced a zip containing a zip, and INSTALL.md and MANIFEST.sha256 beside it as
+  // extra roots. Neither of those can be uploaded.
+  const out = tmp();
+  run(['--out', out, '--only', 'claude-web']);
+  const zip = path.join(out, fs.readdirSync(out).find((f) => f.endsWith('.zip')));
+  const names = entries(zip);
+
+  const roots = new Set(names.map((n) => n.split('/')[0]));
+  assert.strictEqual(roots.size, 1, 'claude.ai needs exactly one top-level folder, got: '
+    + [...roots].join(', '));
+  assert.ok(names.includes('crecs-property-template/SKILL.md'),
+    'SKILL.md is not directly inside the top-level folder');
+  assert.ok(!names.some((n) => n.endsWith('.zip')), 'the archive contains another archive');
+  assert.ok(!names.includes('INSTALL.md'), 'INSTALL.md is a second root and breaks the upload');
+  rmrf(out);
+});
+
+test('the install instructions still reach the client for claude.ai', () => {
+  // They cannot travel inside that archive, so they travel beside it.
+  const out = tmp();
+  run(['--out', out, '--only', 'claude-web']);
+  const files = fs.readdirSync(out);
+  assert.ok(files.some((f) => /claude-web.*INSTALL\.md$/.test(f)),
+    'no INSTALL.md alongside the claude.ai archive: ' + files.join(', '));
+  rmrf(out);
+});
+
 test('it writes checksums a client can verify against', () => {
   const out = tmp();
   run(['--out', out]);

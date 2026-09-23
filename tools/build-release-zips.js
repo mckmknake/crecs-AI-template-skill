@@ -48,6 +48,15 @@ const SURFACES = {
   'chatgpt-file-kit': '.',                  // loose files, the skill at the package root
 };
 
+/**
+ * Surfaces whose deliverable is an archive the package already carries, handed over
+ * untouched. claude.ai validates the upload's own shape, so anything wrapped around it
+ * is rejected; INSTALL.md is written beside the archive instead.
+ */
+const UPLOADED_AS_IS = {
+  'claude-web': 'crecs-property-template.zip',
+};
+
 const SKIP_NAMES = new Set(['__pycache__', '.DS_Store', 'Thumbs.db', 'desktop.ini']);
 
 function fail(message) {
@@ -268,16 +277,39 @@ function main() {
   fs.mkdirSync(outDir, { recursive: true });
   for (const surface of surfaces) {
     const pkgDir = path.join(DIST, surface);
-    const names = walk(pkgDir).sort();
-    if (!names.length) fail('dist/' + surface + ' is empty');
-    const files = names.map((n) => ({
-      name: n,
-      body: fs.readFileSync(path.join(pkgDir, n.split('/').join(path.sep))),
-    }));
-    const archive = zipOf(files);
     const outName = 'crecs-property-template-' + v + '-' + surface + '.zip';
+    let archive;
+    let count;
+
+    if (UPLOADED_AS_IS[surface]) {
+      // claude.ai takes the archive exactly as given: one top-level folder with
+      // SKILL.md directly inside it. Zipping the package directory would wrap that
+      // archive in another one and add INSTALL.md and MANIFEST.sha256 as extra roots,
+      // and the uploader answers "All files must be inside the top-level folder". So
+      // the deliverable IS the inner archive, copied through untouched, and the
+      // instructions travel beside it instead of inside.
+      const inner = path.join(pkgDir, UPLOADED_AS_IS[surface]);
+      if (!fs.existsSync(inner)) fail(surface + ': expected ' + UPLOADED_AS_IS[surface]);
+      archive = fs.readFileSync(inner);
+      count = null;
+      const notes = path.join(pkgDir, 'INSTALL.md');
+      if (fs.existsSync(notes)) {
+        fs.copyFileSync(notes, path.join(outDir,
+          'crecs-property-template-' + v + '-' + surface + '-INSTALL.md'));
+      }
+    } else {
+      const names = walk(pkgDir).sort();
+      if (!names.length) fail('dist/' + surface + ' is empty');
+      const files = names.map((n) => ({
+        name: n,
+        body: fs.readFileSync(path.join(pkgDir, n.split('/').join(path.sep))),
+      }));
+      archive = zipOf(files);
+      count = files.length;
+    }
+
     fs.writeFileSync(path.join(outDir, outName), archive);
-    built.push({ surface, name: outName, files: files.length, bytes: archive.length, sha: sha256(archive) });
+    built.push({ surface, name: outName, files: count, bytes: archive.length, sha: sha256(archive) });
   }
 
   fs.writeFileSync(
@@ -290,7 +322,8 @@ function main() {
   console.log('  out      ' + outDir);
   console.log('');
   for (const b of built) {
-    console.log('  ' + b.surface.padEnd(20) + String(b.files).padStart(4) + ' files  '
+    const what = b.files === null ? ' upload  ' : String(b.files).padStart(4) + ' files  ';
+    console.log('  ' + b.surface.padEnd(20) + what
       + (b.bytes / 1024).toFixed(0).padStart(5) + ' KB  sha256 ' + b.sha.slice(0, 16) + '…');
   }
   console.log('');
