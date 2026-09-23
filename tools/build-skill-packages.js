@@ -567,7 +567,7 @@ const index = {
     + 'tools/crecs-template-studio/build-skill-packages.js — do not edit by hand.',
   version: VERSION,
   generated_at: new Date().toISOString(),
-  canonical_skill: 'skills/crecs-property-template',
+  canonical_skill: path.relative(process.cwd(), skillRoot).split(path.sep).join('/'),
   packages: built,
   formats_verified_on: '2026-09-18',
   format_sources: {
