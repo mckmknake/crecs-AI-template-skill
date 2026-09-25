@@ -51,7 +51,17 @@ node tools/build-negative-fixtures.js crecs-property-template
 node tools/build-skill-packages.js   crecs-property-template dist
 node tools/verify-package.js         dist/claude-code-skill
 python3 crecs-property-template/scripts/tests/run_tests.py
+node tools/build-release-zips.js --out release
 ```
+
+Rebuild `dist/` after any change under `crecs-property-template/`: `build-release-zips.js`
+refuses to package a `dist/` that has drifted from the source.
+
+This repository is the **only** copy of the skill since 2026-09-25 — the plugin repository
+no longer holds one. When the catalog itself has to change, the sequence starts in the
+plugin repository, because that is where the extractors and WordPress are: see its
+`tools/crecs-template-studio/README.md`, *Regenerating after an Elementor or plugin
+change*.
 
 ## Two things this repository cannot do alone
 
