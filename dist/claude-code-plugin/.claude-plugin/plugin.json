@@ -1,7 +1,7 @@
 {
   "name": "crecs-template-studio",
   "displayName": "CRECS Property Template",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Design and edit the shared CRECS Elementor property-page template by conversation, then export importable Elementor JSON.",
   "license": "proprietary",
   "keywords": [

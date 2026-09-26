@@ -31,7 +31,8 @@ UNIT = ["tests.test_bindings", "tests.test_document", "tests.test_state",
 INTEGRATION = ["tests.test_cli", "tests.test_popup", "tests.test_delivery",
                "tests.test_transport_errors",
                "tests.test_bind_list", "tests.test_start_from_site"]
-DOCS = ["tests.test_plain_language", "tests.test_opening_sequence"]
+DOCS = ["tests.test_plain_language", "tests.test_opening_sequence",
+        "tests.test_guided_start"]
 CONVERSATIONAL = ["tests.test_conversational"]
 
 

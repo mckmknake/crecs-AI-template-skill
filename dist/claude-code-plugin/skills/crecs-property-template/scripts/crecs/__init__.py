@@ -6,7 +6,7 @@ CRE Cloud credentials. Everything it knows about the widgets comes from the
 generated projection in ../references/catalog/.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # The delivery-1 catalog this package was generated against. `selftest` checks that
 # the shipped projection still reports the same provenance.
