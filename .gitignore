@@ -10,6 +10,10 @@ __pycache__/
 # MANIFEST.sha256 lists it.
 /*.zip
 
+# Delivery ZIPs from `node tools/build-release-zips.js --out release`. They are
+# rebuilt from dist/ on demand and published outside the repository.
+/release/
+
 # OS junk
 .DS_Store
 ._*
