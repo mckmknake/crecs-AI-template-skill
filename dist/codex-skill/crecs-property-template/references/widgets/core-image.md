@@ -8,7 +8,7 @@ Controls: 53.
 
 | key | type | value shape | responsive | allowed values | default |
 | --- | --- | --- | --- | --- | --- |
-| `image` | media |  | no | — | `{"url":"http://kingrealty.local/wp-content/plugins/elementor/assets/images/placeholder.png","id":"","size":""}` |
+| `image` | media |  | no | — | `{"url":"/wp-content/plugins/elementor/assets/images/placeholder.png","id":"","size":""}` (site-relative) |
 | `image_size` | select |  | no | `thumbnail` `medium` `medium_large` `large` `1536x1536` `2048x2048` `ocean-thumb-m` `ocean-thumb-ml` `ocean-thumb-l` `full` `custom` | `"large"` |
 | `image_custom_dimension` | image_dimensions |  | no | — | `{"width":"","height":""}` |
 | `caption_source` | select |  | no | `none` `attachment` `custom` | `"none"` |
@@ -71,4 +71,6 @@ Controls: 53.
 | `image_border_radius` | dimensions |  | yes | units: px, %, em, rem, custom | `{"unit":"px","top":"","right":"","bottom":"","left":"","isLinked":true}` |
 | `image_box_shadow_box_shadow_type` | popover_toggle |  | no | — | `""` |
 | `image_box_shadow_box_shadow` | box_shadow |  | no | — | `{"horizontal":0,"vertical":0,"blur":10,"spread":0,"color":"rgba(0,0,0,0.5)"}` |
+
+> **Site-relative defaults.** A default marked *site-relative* is a path from the site root: Elementor builds the full URL from each site's own address. Leave the setting out of a template to keep that default.
 

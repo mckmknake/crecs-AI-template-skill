@@ -3,7 +3,8 @@
  *
  * Checks a built package is safe to hand out: the manifest matches, nothing is a
  * symlink, no path escapes the package, no reference points outside it, no secret
- * pattern appears, and no client vocabulary leaked into the catalog projection.
+ * pattern appears, no client vocabulary leaked into the catalog projection, and the
+ * catalog references name no site.
  *
  * Prints PASS/FAIL per check and exits non-zero on any failure.
  *
@@ -255,6 +256,18 @@ for (const target of targets) {
   // 10. an install guide
   check('INSTALL.md present',
     files.some((f) => f.rel === 'INSTALL.md' || f.rel.endsWith('/INSTALL.md')), '');
+
+  // 11. the catalog references name no site. They are generated from one install's
+  // dump, so any absolute URL in them is that install's address on its way to every
+  // client; a site-derived default belongs there as a path (build-references.js).
+  const siteHits = [];
+  for (const file of files) {
+    if (!/(^|\/)references\//.test(file.rel) || !isText(file.rel)) continue;
+    const urls = fs.readFileSync(file.abs, 'utf8').match(/https?:\/\/[^\s"'`)<>|]+/gi);
+    if (urls) siteHits.push(`${file.rel} (${[...new Set(urls)].slice(0, 2).join(', ')})`);
+  }
+  check('catalog references name no site', siteHits.length === 0,
+    siteHits.slice(0, 4).join('; '));
 
   console.log('== ' + name + ' (' + files.length + ' files)');
   for (const entry of checks) {
