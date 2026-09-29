@@ -73,7 +73,7 @@ overlays.
 | **Runs bundled scripts** | skill `scripts/` are supported as a concept (S4). Whether the **web** app executes them — **NOT VERIFIED** | yes; scripts give "deterministic behavior or external tooling" (S4) | yes, **but requires code execution to be enabled** (S1, S3) | yes, via bash, with the user's own permissions (S2) |
 | **Network access at runtime** | NOT VERIFIED | cloud: available during the **setup script** phase; **off by default during the agent phase**, configurable allowlist (S9) | varies by user/admin settings — full, partial or none (S1) | full — same as any program on the machine (S1, S2) |
 | **Reads local files / a WordPress install** | no — ChatGPT web does not read local Codex configuration files (S7); Projects give no folder access (S8) | yes (CLI and IDE, local repo); cloud works on a cloned repo | no | yes |
-| **Can drive a local dev site (delivery 4 preview)** | no | CLI/IDE yes; cloud no (no access to `kingrealty.local`) | no | **yes** |
+| **Can drive a local dev site (delivery 4 preview)** | no | CLI/IDE yes; cloud no (no access to `kingrealty.localhost`) | no | **yes** |
 | **MCP** | web: install a **plugin** that bundles remote MCP tools; desktop: Settings → MCP servers, STDIO or Streamable HTTP, `/mcp` in the composer (S7). Custom connectors need developer mode under Workspace Settings → Permissions & Roles (S10) | `~/.codex/config.toml`, or project-scoped `.codex/config.toml` for **trusted projects only** (S11) | custom connectors — NOT VERIFIED in this session | yes (project/user scoped MCP config) |
 | **Sharing scope** | workspace admins control which plugins and tools are available (S7) | filesystem / repo, so git-shareable | **individual user only**; no org-wide distribution, no central admin management (S1) | personal, project (git-shareable), plugin, or enterprise-managed (S1, S2) |
 | **Skills sync across surfaces** | — | — | **no** — claude.ai skills are not available on the API and vice versa (S1) | claude.ai skills sync **into** Claude Code at `~/.claude/skills/synced/`, refreshed ~every 10 min (S2) |
@@ -85,7 +85,7 @@ overlays.
 | Tier | Surfaces | What the skill can do |
 | --- | --- | --- |
 | **Full** — reads the repo, runs scripts, reaches the local site | Claude Code; Codex CLI / IDE | Regenerate the catalog, validate a generated template against it, drive the Elementor editor, run the delivery-4 preview |
-| **Chat** — instructions plus bundled reference data, no local access | claude.ai; ChatGPT web (and Codex cloud, for anything needing `kingrealty.local`) | Read the catalog **as bundled data**, produce a template JSON, explain it. Cannot verify against the live install. |
+| **Chat** — instructions plus bundled reference data, no local access | claude.ai; ChatGPT web (and Codex cloud, for anything needing `kingrealty.localhost`) | Read the catalog **as bundled data**, produce a template JSON, explain it. Cannot verify against the live install. |
 
 So the knowledge core must carry the catalog as **committed data files**, not as
 "run the extractor". The extractor is a full-tier convenience; the chat tier needs
