@@ -28,7 +28,7 @@ from crecs import coverage  # noqa: E402
 UNIT = ["tests.test_bindings", "tests.test_document", "tests.test_state",
         "tests.test_canonical_hash", "tests.test_base_template",
         "tests.test_references", "tests.test_validate", "tests.test_export",
-        "tests.test_search"]
+        "tests.test_search", "tests.test_styles"]
 INTEGRATION = ["tests.test_cli", "tests.test_popup", "tests.test_delivery",
                "tests.test_transport_errors",
                "tests.test_bind_list", "tests.test_start_from_site"]

@@ -110,10 +110,19 @@ real property rendered in each block:
 ```
 python3 scripts/crecs_template.py init --from assets/property-template-all-widgets.json \
     --workdir ./crecs-showcase --profile ./<client>-profile.json
+python3 scripts/crecs_template.py popup --workdir ./crecs-showcase --list
+python3 scripts/crecs_template.py popup --workdir ./crecs-showcase --element <button> \
+    --control link --clear --decision "look-only preview"
 python3 scripts/crecs_template.py export --workdir ./crecs-showcase --out ./showcase.json --allow-draft
 python3 scripts/crecs_preview.py apply --document ./showcase.json --session-file <file>
 python3 scripts/crecs_preview.py property <a real slug on their site>
 ```
+
+**Take the popups off the contact buttons first** — `popup --clear` on each button
+`popup --list` shows. They open the reference site's contact windows, and the preview
+refuses a page whose buttons open windows this site does not have. The tour is for
+looking, so the buttons simply open nothing here; step 10 points the buttons of the page
+they keep at their own.
 
 For the example property, list their properties from the site and pick any published
 one; only ask them if there is none. The showcase is for looking only — it is never
@@ -186,13 +195,17 @@ different while they look:
 ```
 python3 scripts/crecs_template.py init --from assets/styles/property-template-style-<style>.json \
     --workdir ./crecs-look-<style> --profile ./<client>-profile.json --force
+python3 scripts/crecs_template.py popup --workdir ./crecs-look-<style> --list
+python3 scripts/crecs_template.py popup --workdir ./crecs-look-<style> --element <button> \
+    --control link --clear --decision "look-only preview"
 python3 scripts/crecs_template.py export --workdir ./crecs-look-<style> --out ./look-<style>.json --allow-draft
 python3 scripts/crecs_preview.py apply --document ./look-<style>.json --session-file <file>
 ```
 
-`<style>` is `bold`, `modern`, `classic`, `corporate` or `minimal`. These previews are
-for looking only; they are never delivered for import. If they only want to see one or
-two, show those.
+`<style>` is `bold`, `modern`, `classic`, `corporate` or `minimal`. As in the tour, take
+the popups off every button `popup --list` shows before `export`, or the preview refuses
+the page. These previews are for looking only; they are never delivered for import. If
+they only want to see one or two, show those.
 
 | Style | Layout | Fonts | Colors | What stands out |
 | --- | --- | --- | --- | --- |
@@ -331,7 +344,7 @@ cleaner than rebuilding one layout into another; offer that.
 | They might ask for | What changes | How |
 | --- | --- | --- |
 | Their own colors | Band, accent, text, page and card colors | Step 7; `set` on each widget's color controls |
-| Different fonts | Heading and body fonts | The widgets' `*_typography_font_family` controls; add the font to the profile's `fonts` so the site loads it |
+| Different fonts | Heading and body fonts | The widgets' `*_typography_font_family` controls, and the font in the profile's `fonts`, which records the fonts the page asks for. Elementor loads Google fonts on the site by itself |
 | Bigger or smaller text | Name, address, rate or section-title sizes | The typography size controls; set phone and tablet sizes too where the reference marks them responsive |
 | Rounder or squarer corners | Cards, photos, buttons | The border-radius controls; photo corners live in the media box's custom styling |
 | Different buttons | Filled or outline, square or rounded, which buttons show | Button color, border and radius controls; `remove --reason` for a button they don't want |

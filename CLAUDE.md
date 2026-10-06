@@ -107,6 +107,11 @@ the top-level folder"* — they carry `INSTALL.md` and `MANIFEST.sha256` beside 
 - `assets/property-template-all-widgets.json` is derived from a reference
   `PropertyPage.json` that is in **no** repository. It cannot be rebuilt from a clean
   checkout, here or in the plugin repository.
+- The five ready-made styles in `assets/styles/` have **no generator** either: they were
+  designed by hand on a copy of the skill and received on 2026-09-29. Edit them as
+  Elementor documents, and keep `tests/test_styles.py` green — it holds each one to the
+  starter's validation, to the fonts SKILL.md promises, to an empty loader slug and to
+  no address of any site.
 - A client only learns their skill is stale when an edit fails to appear. The staleness
   check — comparing the site's `catalog_sha256` through an authenticated preview session —
   is designed and not built; see the plugin repository's `STATE.md`.
