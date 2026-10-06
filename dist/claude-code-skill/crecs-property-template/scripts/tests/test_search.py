@@ -134,9 +134,9 @@ class Commands(unittest.TestCase):
                                        "button_backgroundcolor", "--value", "#000")
         self.assertEqual(search_cli.EXIT_USAGE, code)
         self.assertIn("button_background_color", err)
-        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_zoom", "--value", "12")
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_tilt", "--value", "12")
         self.assertEqual(search_cli.EXIT_USAGE, code)
-        self.assertIn("no map_zoom setting", err)
+        self.assertIn("no map_tilt setting", err)
 
     def test_device_values_only_where_the_setting_is_responsive(self):
         self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "map_height",
@@ -338,6 +338,43 @@ class Commands(unittest.TestCase):
         self.assertEqual(search_cli.EXIT_USAGE, code)
         self.assertIn('has no part "gallery"', err)
         self.assertEqual([], self.vocab.check(self.doc()))
+
+    # -- the map itself ----------------------------------------------------------
+
+    def test_the_map_opens_where_and_how_the_layout_says(self):
+        for key, value in (("map_zoom", "12"), ("map_center", "38.627, -90.199"),
+                           ("map_style", "dark"), ("map_water_color", "#0a3d62"),
+                           ("map_street_view_control", "hidden")):
+            self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", key, "--value", value)[0], key)
+        self.assertEqual({"map_zoom": 12, "map_center_lat": 38.627, "map_center_lng": -90.199,
+                          "map_style": "dark", "map_water_color": "#0a3d62",
+                          "map_street_view_control": "hidden"}, self.settings(MAP))
+        self.assertEqual([], self.vocab.check(self.doc()))
+        # The centre is set and taken away as one.
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "map_center",
+                                         "--value", '{"lat": 40.7, "lng": -74}')[0])
+        self.assertEqual((40.7, -74), (self.settings(MAP)["map_center_lat"], self.settings(MAP)["map_center_lng"]))
+        self.assertEqual(0, self.run_cli("unset", "--node", MAP, "--key", "map_center")[0])
+        self.assertNotIn("map_center_lat", self.settings(MAP))
+        self.assertNotIn("map_center_lng", self.settings(MAP))
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_center", "--value", "38.627")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("give both", err)
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_center", "--value", "95, 10")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("from -90 to 90", err)
+
+    def test_half_a_centre_or_a_colour_the_map_cannot_read_is_refused(self):
+        before = self.raw()
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_center_lat", "--value", "38.627")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn('go together', err)
+        self.assertEqual(before, self.raw())
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_water_color", "--value", "blue")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("#rrggbb", err)
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_center_lng", "--value", "90,199")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
 
     def test_columns_are_set_per_device(self):
         self.assertEqual(0, self.run_cli("set", "--node", RESULTS, "--key", "grid_columns",

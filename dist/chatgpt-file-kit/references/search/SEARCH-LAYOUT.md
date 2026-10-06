@@ -108,6 +108,14 @@ The result cards and the popup a pin opens are set on the **Results** block (`cr
 - **The grid's columns** are set per device, and **none inherits** from another: `grid_columns` on computers while the map shows, `grid_columns_without_map` on computers while it is hidden, `grid_columns_tablet`, `grid_columns_mobile`. An unset one keeps the page's own: two (three on very wide screens) with the map, five without it, one on tablets and phones. `per_page` is how many results a page shows.
 - **The popup.** Until `popup_fields` is set, a pin opens the popup CRE Cloud sends, which the layout cannot change except its width (`popup_width`). Once it is set, the plugin builds the popup from the same data as the card: the photo, with the category over it, on the left, the other parts on the right in the list's order, from `photo`, `category`, `name`, `address`, `property_type`, `sub_type`, `available_sf`, `available_acres`, `land_sf`, `min_sf`, `max_sf`, `rates`, `view_button`. The size lines take the card's labels; the button's text is `text_popup_button`; the `popup`, `popup_name`, `popup_details`, `popup_category` and `popup_button` parts take colours, fonts and the rest like any other part.
 
+## The map itself
+
+Set on the **Map** block (`crecs_search_map`); the map reads them when it opens, and each beats the plugin's settings screen. Unset, the map opens as it does today: the settings screen's zoom and centre (or the first property found when it has no centre), streets, the site's own grey look, and Google's controls on computers but none on phones.
+
+- **Where it opens.** `map_zoom`, and the limits visitors can zoom between, `map_min_zoom` and `map_max_zoom` (the zoom must sit between them). `map_center_lat` and `map_center_lng` go together and make the map open on that place, on every search address.
+- **How it behaves.** `map_type` (streets, satellite, both, relief) and `map_gestures`. The controls — `map_zoom_control`, `map_type_control`, `map_fullscreen_control`, `map_street_view_control` — are `shown` or `hidden`, and once set they apply on phones too, which show none today.
+- **How it looks.** `map_style` picks a ready-made look (`site`, `google`, `silver`, `dark`, `retro`); `map_water_color`, `map_land_color`, `map_road_color` and `map_label_color` go over it, written `#rrggbb`, and `map_labels` and `map_points_of_interest` show or hide those.
+
 ## Blocks
 
 ### Page — `crecs_search_page`
@@ -152,6 +160,24 @@ Options:
 - `start_map`: how the map starts on computers; unset, the settings screen decides. Value: one of `shown`, `hidden`.
 - `popup_fields`: what the popup a pin opens shows, built by the plugin from the card's data: the photo, with the category over it, on the left, the other parts on the right in this order; unset, the popup CRE Cloud sends. Value: a list of parts, each once, in the order they show, from `photo`, `category`, `name`, `address`, `property_type`, `sub_type`, `available_sf`, `available_acres`, `land_sf`, `min_sf`, `max_sf`, `rates`, `view_button`.
 - `popup_width`: the popup's width in pixels; unset, 370. Value: a whole number from 220 to 600.
+- `map_zoom`: the zoom the map opens with, 1 (the world) to 20 (a building); unset, the settings screen decides. Value: a whole number from 1 to 20.
+- `map_min_zoom`: how far out visitors can zoom; unset, no limit. Value: a whole number from 1 to 20.
+- `map_max_zoom`: how far in visitors can zoom; unset, no limit. Value: a whole number from 1 to 20.
+- `map_center_lat`: the latitude the map opens on, with `map_center_lng`; unset, the settings screen's centre, or the first property found when it has none. Value: a number from -90 to 90, decimals allowed, written as a number.
+- `map_center_lng`: the longitude the map opens on, with `map_center_lat`. Value: a number from -180 to 180, decimals allowed, written as a number.
+- `map_type`: the map's type: streets, satellite, satellite with names, or relief; unset, streets. Value: one of `roadmap`, `satellite`, `hybrid`, `terrain`.
+- `map_gestures`: how the map answers scrolling and dragging: `cooperative` needs Ctrl (two fingers on phones), `greedy` always moves, `none` never; unset, `auto`. Value: one of `auto`, `cooperative`, `greedy`, `none`.
+- `map_zoom_control`: the + and - buttons. Value: one of `shown`, `hidden`.
+- `map_type_control`: the map / satellite switch. Value: one of `shown`, `hidden`.
+- `map_fullscreen_control`: the full-screen button. Value: one of `shown`, `hidden`.
+- `map_street_view_control`: the Street View figure. Value: one of `shown`, `hidden`.
+- `map_style`: a ready-made look: the site's own, Google's standard one, silver, dark or retro; unset, the site's own. Value: one of `site`, `google`, `silver`, `dark`, `retro`.
+- `map_water_color`: the water's colour, over the look. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
+- `map_land_color`: the land's colour, over the look. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
+- `map_road_color`: the roads' colour, over the look. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
+- `map_label_color`: the colour of the map's names and labels, over the look. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
+- `map_labels`: the map's names and labels, all of them. Value: one of `shown`, `hidden`.
+- `map_points_of_interest`: shops, schools, parks and other places of interest; the site's own look hides them. Value: one of `shown`, `hidden`.
 
 ### Filters — `crecs_search_filters`
 

@@ -38,6 +38,10 @@ EXIT_FILE = 3
 FILE_ENV = "CRECS_SEARCH_FILE"
 DEFAULT_FILE = "search-layout.json"
 
+# Settings the plugin accepts only together (a rule between them), so `set` and `unset`
+# take them as one key: one at a time, the first would always be refused.
+PAIRS = {"map_center": ("map_center_lat", "map_center_lng")}
+
 
 class Refused(Exception):
     """The change would make the plugin refuse the layout."""
@@ -135,8 +139,12 @@ def parse_value(spec, raw):
     except ValueError:
         parsed = raw
 
-    if kind in ("color", "select", "font", "text"):
+    if kind in ("color", "select", "font", "text", "map_color"):
         return parsed if isinstance(parsed, str) else raw
+    if kind == "decimal":
+        if isinstance(parsed, (int, float)) and not isinstance(parsed, bool):
+            return parsed
+        raise Usage("must be a number, such as 38.627 or -90.199")
     if kind == "amount":
         if isinstance(parsed, (int, float)) and not isinstance(parsed, bool):
             return parsed
@@ -277,6 +285,8 @@ class Editor:
 
     def set(self, node_id, key, raw, device=None, hover=False):
         node, *_ = self.node(node_id)
+        if key in PAIRS and not device and not hover:
+            return self._set_pair(node, key, raw)
         name, spec = self.control_name(node, key, device, hover)
         value = parse_value(spec, raw)
         if value is None or is_unset(spec, value):
@@ -287,8 +297,54 @@ class Editor:
         settings_of(node)[name] = value
         return {"node": node["id"], "block": self.label(node), "setting": name, "value": value}
 
+    def _pair_names(self, node, key):
+        names = PAIRS[key]
+        controls = self.vocab.controls(node.get("widgetType"))
+        if not all(name in controls for name in names):
+            raise Usage("%s has no %s setting" % (self.describe(node), key))
+        return names, controls
+
+    def _set_pair(self, node, key, raw):
+        """Two settings that only make sense together, set as one: `38.627, -90.199`."""
+        names, controls = self._pair_names(node, key)
+        try:
+            parsed = json.loads(raw)
+        except ValueError:
+            parsed = raw
+        if isinstance(parsed, dict):
+            parsed = [parsed.get(name.rsplit("_", 1)[1]) for name in names]
+        elif isinstance(parsed, str):
+            parsed = [part.strip() for part in parsed.split(",")] if parsed.strip() else []
+        if parsed in (None, []):
+            return self._unset_pair(node, key)
+        if not isinstance(parsed, list) or len(parsed) != len(names):
+            raise Usage('give both, as "%s": two numbers separated by a comma, e.g. 38.627, -90.199'
+                        % " and ".join(names))
+        values = []
+        for name, value in zip(names, parsed):
+            value = parse_value(controls[name], json.dumps(value) if not isinstance(value, str) else value)
+            problem = self.vocab.problem(controls[name], value)
+            if problem:
+                raise Usage("%s: %s %s" % (self.describe(node), name, problem))
+            values.append(value)
+        settings = settings_of(node)
+        for name, value in zip(names, values):
+            settings[name] = value
+        return {"node": node["id"], "block": self.label(node), "setting": key,
+                "value": dict(zip(names, values))}
+
+    def _unset_pair(self, node, key):
+        names, _controls = self._pair_names(node, key)
+        settings = settings_of(node)
+        had = any(name in settings for name in names)
+        for name in names:
+            settings.pop(name, None)
+        return {"node": node["id"], "block": self.label(node), "setting": key, "removed": had}
+
     def unset(self, node_id, key, device=None, hover=False):
         node, *_ = self.node(node_id)
+        if key in PAIRS and not device and not hover:
+            return self._unset_pair(node, key)
         name, _spec = self.control_name(node, key, device, hover)
         settings = settings_of(node)
         had = name in settings
@@ -489,6 +545,10 @@ def control_rows(vocab, document, node_id, match=None):
             allowed = "names, comma-separated or a JSON list"
         elif spec["type"] == "fields":
             allowed = "parts in order, from " + "|".join(spec["options"])
+        elif spec["type"] == "decimal":
+            allowed = "number %s..%s" % (spec["min"], spec["max"])
+        elif spec["type"] == "map_color":
+            allowed = "#rrggbb"
         elif spec["type"] == "hide":
             allowed = "yes|no"
         elif spec["type"] == "text":

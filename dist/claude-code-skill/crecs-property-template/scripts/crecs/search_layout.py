@@ -38,6 +38,8 @@ _ALPHA = _WS + r"(?:0|1|0?\.[0-9]{1,3}|1\.0{1,3})" + _WS
 _HEX = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 _RGB = re.compile(r"^rgba?\(" + _BYTE + "," + _BYTE + "," + _BYTE + "(?:," + _ALPHA + r")?\)$")
 _NUMBER = re.compile(r"^-?[0-9]{1,5}(?:\.[0-9]{1,3})?$")
+# PCRE's `$` with the D modifier: the very end, a final newline refused.
+_MAP_COLOR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\Z")
 _CONTROL_CHAR = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -110,6 +112,14 @@ class Vocabulary:
             return self._list_problem(value)
         if kind == "fields":
             return self._fields_problem(spec, value)
+        if kind == "decimal":
+            ok = isinstance(value, (int, float)) and not isinstance(value, bool) \
+                and spec["min"] <= value <= spec["max"]
+            return "" if ok else "must be a number from %d to %d" % (spec["min"], spec["max"])
+        if kind == "map_color":
+            # Google's map styles take a hex colour and nothing else.
+            ok = isinstance(value, str) and _MAP_COLOR.match(value) is not None
+            return "" if ok else "must be a colour written #rrggbb or #rgb"
         if kind == "number":
             ok = _is_int(value) and spec["min"] <= value <= spec["max"]
             return "" if ok else "must be a whole number from %d to %d" % (spec["min"], spec["max"])
@@ -363,6 +373,21 @@ class Vocabulary:
             if on(unit + "_option_hide"):
                 out.append(_finding("E-SL-VALUE", node_id,
                                     "%s starts in %s, whose choice is hidden." % (block_type, unit)))
+
+        # Stage 3: the map's zoom stays within its limits, and a centre is a place.
+        if is_set("map_min_zoom") and is_set("map_max_zoom") \
+                and settings["map_min_zoom"] > settings["map_max_zoom"]:
+            out.append(_finding("E-SL-VALUE", node_id,
+                                '%s "map_min_zoom" is larger than "map_max_zoom".' % block_type))
+        elif is_set("map_zoom") and (
+                (is_set("map_min_zoom") and settings["map_zoom"] < settings["map_min_zoom"])
+                or (is_set("map_max_zoom") and settings["map_zoom"] > settings["map_max_zoom"])):
+            out.append(_finding("E-SL-VALUE", node_id,
+                                '%s "map_zoom" is outside "map_min_zoom" and "map_max_zoom".' % block_type))
+        if is_set("map_center_lat") != is_set("map_center_lng"):
+            out.append(_finding("E-SL-VALUE", node_id,
+                                '%s "map_center_lat" and "map_center_lng" go together: set both or '
+                                "neither." % block_type))
 
         # What the Clear rule in check() needs: where Clear is hidden, and every filter that
         # starts with a value, with the devices where visitors cannot see it.

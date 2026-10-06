@@ -860,15 +860,36 @@ python3 scripts/crecs_search.py show --file ./search.json
   the map, computers without it, tablets and phones; how many results a page shows.
 - **The popup a pin opens on the map**: what it shows and in what order, its width, the
   words of its button, its colours and fonts.
+- **The map itself**: where it opens and how close, how far visitors can zoom in and
+  out, streets or satellite, how it answers scrolling and dragging, which of its buttons
+  show, and its look — a ready-made one (the site's own, Google's standard, silver,
+  dark, retro) with their own colours for water, land, roads and names, and the names
+  and places of interest shown or hidden.
 
-**Not yet**, so do not promise them and do not imitate them: the map's zoom, centre,
-controls and colours, its pins and clusters; mouse-over effects between the cards and
-the pins. Say these are planned, and note the request. Never fake one with something
-else — a filter "hidden" by painting it white still sits in the page, and the visitor
-still tabs into it.
+**Not yet**, so do not promise them and do not imitate them: the map's pins and
+clusters; mouse-over effects between the cards and the pins. Say these are planned, and
+note the request. Never fake one with something else — a filter "hidden" by painting it
+white still sits in the page, and the visitor still tabs into it.
 
 **By design, never**: a filter the visitor cannot remove. What they can have is a
 starting value, below.
+
+### The map
+
+- **A centre is a place.** When they name one ("open on downtown St. Louis"), find its
+  coordinates yourself — never ask them for numbers — and set both at once:
+  `set --node <map> --key map_center --value "38.627, -90.199"` (and
+  `unset --key map_center` to go back to the site's own centre).
+- **Zoom**: about 10 shows a metro area, 13 a downtown, 16 a few streets. The minimum
+  and maximum keep visitors from zooming somewhere that does not help them; the opening
+  zoom must sit between them.
+- **Colours go over the chosen look** and must be written `#rrggbb`: turn "navy" into a
+  code yourself. Satellite views have no colours to change.
+- **Buttons, once set, show or hide on phones too**, which show none today. Before
+  adding one, ask whether phones should have it.
+- **Gestures**: `greedy` moves the map with the mouse wheel even while the visitor is
+  scrolling the page; `cooperative` asks for Ctrl (two fingers on a phone). If they ask
+  for scroll-to-zoom, say what it does to scrolling past the map.
 
 ### Cards and the map popup
 
@@ -943,7 +964,8 @@ Every command takes `--file ./search.json` (or set `$CRECS_SEARCH_FILE`) and `--
 Values are JSON or the usual shorthand: `#0a3d62`, `24px`, `8px 16px`,
 `0 2px 8px 0 rgba(0,0,0,0.2)`, `yes` / `no`, `5,000` for an amount, `Office, Retail`
 for a list of names (a name with a comma in it goes as JSON: `'["Doe, Jane"]'`), and
-`name, rates, buttons` for the parts of a card or of the popup, in order.
+`name, rates, buttons` for the parts of a card or of the popup, in order, and
+`38.627, -90.199` for `map_center`, which sets the map's latitude and longitude together.
 
 Each change is checked against the plugin's own rules first, and one the plugin would
 refuse is not written — the command says why. After each change, `apply`: the preview
