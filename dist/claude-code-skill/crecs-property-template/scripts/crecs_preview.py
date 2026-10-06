@@ -10,11 +10,13 @@ does not land in shell history or in a process list:
 
     ~/.crecs/preview-<host>.json   {"id": "...", "token": "...", "base": "https://..."}
 
-or whatever --session-file points at. Write that file with the site's own
-`open-session` step (see docs/crecs-template-studio/PREVIEW-CONNECT.md); this script
-never asks for a password and never prints a token.
+or whatever --session-file points at. The site's Template preview screen shows that
+file's text in a box when a preview starts or gets a new link; `connect` saves it,
+from standard input or a file, after checking it with the site. This script never asks
+for a password and never prints a token.
 
 Usage:
+    crecs_preview.py connect [--from box.txt]   (the box's text on standard input)
     crecs_preview.py capabilities --base https://site
     crecs_preview.py state
     crecs_preview.py current --out doc.json
@@ -200,8 +202,99 @@ def _explain(code: str, message: str, status: int) -> str:
                 "no routes until the crecs_preview_enabled option is set.")
     if code in ("crecs_preview_unauthorised", "crecs_preview_expired") or status in (401, 403):
         return (f"{message} If a new preview link was issued, the token changed with it "
-                f"— take the current session file from {ADMIN_SCREEN}.")
+                f"— in {ADMIN_SCREEN}, use New link on this session (or start a new one) "
+                "and save the box it shows with `crecs_preview.py connect`.")
     return message
+
+
+class SessionText(Exception):
+    """What was handed to `connect` is not a preview session."""
+
+
+def parse_session_text(text: str) -> dict:
+    """The session file, from the text of the Template preview box.
+
+    Whatever surrounds the box's JSON is ignored, so the text can come straight from
+    the page. The result has the keys the site writes, and nothing else.
+    """
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end < start:
+        raise SessionText("that text holds no preview session: it has no { … } in it")
+    try:
+        data = json.loads(text[start:end + 1])
+    except json.JSONDecodeError:
+        raise SessionText("that text is not a preview session: its { … } is not JSON") from None
+    if not isinstance(data, dict):
+        raise SessionText("that text is not a preview session")
+    base, sid, token = data.get("base"), data.get("id"), data.get("token")
+    url = urllib.parse.urlparse(base) if isinstance(base, str) else None
+    if not url or url.scheme not in ("http", "https") or not url.hostname:
+        raise SessionText("that session has no site address (base)")
+    if not isinstance(sid, str) or not sid.strip():
+        raise SessionText("that session has no id")
+    if not isinstance(token, str) or not token.strip() or any(c.isspace() for c in token.strip()):
+        raise SessionText("that session has no usable token")
+    kind = data.get("kind", "property")
+    if kind not in ("property", "search"):
+        raise SessionText(f"that session is for an unknown page kind: {kind!r}")
+    session = {"base": base.strip().rstrip("/"), "id": sid.strip(), "token": token.strip()}
+    if kind == "search":
+        session["kind"] = "search"
+    return session
+
+
+def session_path(session: dict, folder: Path) -> Path:
+    """Where a site's session file lives: the name the Template preview screen shows."""
+    host = urllib.parse.urlparse(session["base"]).hostname.lower()
+    return folder / f"preview-{host}.json"
+
+
+def cmd_connect(source: str | None, folder: Path, insecure: bool, as_json: bool) -> int:
+    """Check a session with its site, then save it where the other commands read it."""
+    try:
+        if source in (None, "-"):
+            text = sys.stdin.read()
+        else:
+            text = Path(source).read_text(encoding="utf-8")
+        session = parse_session_text(text)
+    except (OSError, UnicodeDecodeError, SessionText) as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 3
+
+    kind = "search page" if session.get("kind") == "search" else "property page"
+    host = urllib.parse.urlparse(session["base"]).hostname
+    target = session_path(session, folder)
+
+    # A session the site refuses is not saved: it would only replace one that works.
+    unreachable = ""
+    try:
+        Client(session["base"], session["id"], session["token"], insecure=insecure).state()
+    except Refused as exc:
+        print(f"refused: the site did not accept this preview session: {exc}", file=sys.stderr)
+        return 2
+    except Transport as exc:
+        unreachable = str(exc)
+
+    folder.mkdir(parents=True, exist_ok=True)
+    temp = target.with_name(target.name + ".tmp")
+    temp.write_text(json.dumps(session, indent=1) + "\n", encoding="utf-8")
+    try:
+        os.chmod(temp, 0o600)
+    except OSError:
+        pass
+    os.replace(temp, target)
+
+    if as_json:
+        print(json.dumps({"connected": not unreachable, "host": host, "kind": session.get("kind", "property"),
+                          "session_file": str(target)}, indent=1))
+    else:
+        print(f"connected to {host}: the {kind} preview. Session saved in {target}; "
+              f"pass it as --session-file.")
+    if unreachable:
+        print(f"warning: saved, but the site could not be reached to check it: {unreachable}",
+              file=sys.stderr)
+        return 3
+    return 0
 
 
 def canonical_hash(content) -> str:
@@ -285,6 +378,12 @@ def main(argv=None) -> int:
     for name in ("capabilities", "resume", "state", "undo", "close", "options"):
         sub.add_parser(name, parents=[common])
 
+    co = sub.add_parser("connect", parents=[common],
+                        help="save the session the Template preview screen shows, after checking it")
+    co.add_argument("--from", dest="source", help="a file holding the box's text; default: standard input")
+    co.add_argument("--session-dir", type=Path, default=DEFAULT_SESSION_DIR,
+                    help="where session files are kept (default: ~/.crecs)")
+
     cur = sub.add_parser("current", parents=[common])
     cur.add_argument("--out", type=Path, help="write the document here")
 
@@ -303,6 +402,9 @@ def main(argv=None) -> int:
     wa.add_argument("--interval", type=float, default=2.5)
 
     args = p.parse_args(argv)
+
+    if args.cmd == "connect":
+        return cmd_connect(args.source, args.session_dir, args.insecure, args.json)
 
     try:
         if args.cmd == "capabilities":

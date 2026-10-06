@@ -30,6 +30,50 @@ whole conversation from sign-in to an imported template, so:
   of a style), suggest one and let them react.
 - When something fails, say what they will notice and what to do next — never an error
   code.
+- Do every technical step yourself (next section). They talk about their page; you
+  handle the files, the codes and the settings.
+
+## Doing the technical part for them
+
+They should never have to touch anything technical. If a step involves a file, a token,
+a code, JSON, a setting's name or a command, it is yours:
+
+- **The preview connection**: starting the preview, saving its session file, and getting
+  a new one when it stops working (step 3, and *When the preview stops answering*
+  below).
+- **Their current page**: fetch it through the preview (step 9); never ask them to
+  export it.
+- **Files they need**: save them in their **Downloads** folder under a plain name, and
+  open the WordPress screen where the file is used.
+- **Settings and ids**: find them in WordPress yourself and fill them in yourself.
+
+What stays theirs: signing in; looking and deciding; choosing a file from their own
+computer when a page asks for one (their logo, the template to import); pressing
+**Publish**; and saying yes before you make anything live. Before a click that sends
+something in WordPress, say in one plain sentence what it will do, and go ahead on their
+OK.
+
+Never ask them to copy, paste, save, rename, attach or edit a file, to open a terminal,
+or to run anything. Never show them a token, an id, a file path, JSON or a command, and
+do not mention one: "I've connected to your preview" is all they need to hear.
+
+**When the preview stops answering.** A command that says the session expired, the
+token changed or the link was already used means the connection needs renewing — it is
+not news for them. In **Template preview**, under **Your preview sessions**, press
+**New link** on that session (the work stays), save the box the screen shows with
+`connect` (step 3), and press **Open the preview**. If the session is gone, start a new
+one the same way and apply your last saved file to it again. Then tell them one
+sentence:
+
+> The preview had timed out, so I opened a fresh one. Everything we did is still there.
+
+**No browser you can use?** Then the box on the Template preview screen is the one
+thing they hand you. Ask for it in a single step, and save it with `connect` yourself:
+
+> On that screen, click inside the box under "Preview started", press Ctrl+C (Cmd+C on a
+> Mac), and paste it here. That's all I need to connect to your preview.
+
+Never repeat the box's text back to them, and never put it anywhere but `connect`.
 
 ## Start here, before anything else
 
@@ -75,24 +119,44 @@ If what they asked for is the search page — the list of properties with the ma
 filters — say so in your welcome instead of the property-page line, and take the search
 page at step 3.
 
-**3. Open that site's preview.** In WordPress: **CRE Cloud Solutions → Template preview**.
-That screen starts a private preview and hands back a session file, which is how you —
-and they — see changes before anything goes live. It has two starts: **Preview the
-property page** and **Preview the search page**. For the search page, everything after
-this step is in *The search page* below, not in the guided design start; its session
-file says `"kind": "search"`. Get the session file into your
-workspace (they attach it, or you read it from a connected folder such as their
-Downloads) and pass it to `scripts/crecs_preview.py --session-file`. Never print the
-file's token. If the menu is not there, the site does not have the preview enabled —
-say so plainly, and carry on without it. Everything else in this skill works; you simply
-cannot show them the result, so be clear that what you produce is unverified until they
-import it.
+**3. Open that site's preview yourself.** Tell them you are about to open a private
+preview, where they will see every change before anything goes live, and go ahead on
+their OK. In the browser where they signed in, open
+**CRE Cloud Solutions → Template preview** and start it: **Start preview** under
+*Preview the property page* (the template that serves property pages now is already
+chosen; leave *Example property* empty, step 4 picks one), or
+**Start search page preview**. For the search page, everything after this step is in
+*The search page* below, not in the guided design start.
+
+The screen then shows an **Open the preview** button and, in a box, the session file:
+the key to this preview. Read the box's text from the page and save it yourself:
+
+```
+python3 scripts/crecs_preview.py connect <<'EOF'
+<the box's text, exactly as the page shows it>
+EOF
+```
+
+`connect` checks the session with the site, saves it as `~/.crecs/preview-<site>.json`
+and prints that path and which page it previews; pass the path as `--session-file` from
+then on. For the property page, when the template list marked one as *currently serving
+property pages*, keep a copy of that page now, before anything is applied to the
+preview: `crecs_preview.py current --out ./current-page.json --session-file <file>`.
+Step 9 can start from it, and it is their page as it was. Then press
+**Open the preview** — the link works once — so they see it, and say in a sentence what
+they are looking at. Never show the box's token, never repeat it, and never ask them to
+copy it while you can read the page yourself.
+
+If the menu is not there, the site does not have the preview enabled — say so plainly,
+and carry on without it. Everything else in this skill works; you simply cannot show
+them the result, so be clear that what you produce is unverified until it is imported.
 
 **Never open a real property page.** Not `/property/<slug>`, not from the property list,
 not "just to look". That URL renders the **published** template — the site as it is
 today — so your change is not on it. Someone watching will reasonably believe they are
 seeing their edit when they are seeing live production. Show the preview, always, or
-show nothing and say why.
+show nothing and say why. The one exception is the end of *Deliver it*: once they have
+said yes and you have made the new design live, open one to show it to them live.
 
 ## The guided design start
 
@@ -273,11 +337,13 @@ still want one on the page.
 
 If they want it placed:
 
-1. They upload it in WordPress: **Media → Add New**, then open the file and copy its
-   **File URL**.
-2. Look up the attachment id yourself. In the browser, open **Media**, click the file
-   they uploaded, and read the number from the address bar. With no browser, work from
-   the File URL alone: an image on their own site's address validates without an id.
+1. Open **Media → Add New** for them and ask them to drag their logo file onto that page
+   — choosing a file on their own computer is the one part you cannot do — and to tell
+   you when it has finished.
+2. Find it yourself. In the browser, open **Media**, click the file they uploaded, and
+   read its **File URL** from the details and its attachment number from the address
+   bar. With no browser, ask them to paste the image's link from that screen instead:
+   an image at their own site's address validates without a number.
 3. Add the attachment id, if you have one, to the profile's `media` map, then add an
    Elementor `image` widget where they want it (see `references/widgets/core-image.md`
    for its controls).
@@ -303,9 +369,10 @@ Offer the choices in this order, and suggest the first:
   `init --from assets/styles/property-template-style-<style>.json`.
 - **Everything, unstyled** → `init --from assets/property-template-all-widgets.json`,
   then remove what they don't need.
-- **Their existing page** → they export it: **Templates → Saved Templates**, find the
-  property page template, **Export** on its row. They attach the downloaded file;
-  `init --from` it.
+- **Their existing page** → `init --from ./current-page.json`, the copy you kept in
+  step 3. Nothing to ask of them. With no preview on the site, export it yourself in the
+  browser — **Templates → Saved Templates**, **Export** on the property page template's
+  row — and `init --from` the file it puts in their Downloads folder.
 
 A brand-new site usually has no property page yet, so starting from a style is the
 likely answer. Every style carries the same blocks as the starter page except the
@@ -448,10 +515,12 @@ Then:
    have rather than starting over.
 
 If the person has not given you a target profile, copy
-`assets/target-profile.example.json`, ask them for the three values that block an
-export — their site host, a real property slug for the editor preview, and the popup
-ids their contact buttons should open — and fill it in. The profile holds no secrets;
-if you are tempted to put a token in it, stop.
+`assets/target-profile.example.json` and fill in the three values that block an export
+yourself — their site host (from step 1), a real property slug for the editor preview
+(any published property; pick it), and the popup ids their contact buttons should open
+(read **Templates → Popups** and match the windows they name). Ask them only the plain
+question behind the last one: which contact window each button should open. The profile
+holds no secrets; if you are tempted to put a token in it, stop.
 
 The popup ids in that example are **placeholders**, and they must stay that way until
 you have the client's real ids. Declaring an id asserts that the popup exists on their
@@ -463,9 +532,15 @@ nothing. Retarget them instead, with `popup`.
 ## Which template to start from
 
 **If the site already has a property page, start from theirs** — unless they have looked
-at the ready-made styles and chosen to switch to one. Ask them to send it:
-in WordPress, **Templates → Saved Templates**, find the property page template, and use
-**Export** on its row. That downloads a JSON file. Pass that file to `init --from`.
+at the ready-made styles and chosen to switch to one. Get it yourself: a property
+preview starts from the template that serves their property pages, so before anything
+is applied to it, `crecs_preview.py current --out ./current-page.json --session-file
+<file>` holds their page (step 3 keeps that copy); pass it to `init --from`. The preview
+only hands back its latest version, so once something has been applied, start a new
+property preview to fetch the original again. With no preview on the site, export it
+yourself in the browser — **Templates → Saved Templates**, **Export** on the property
+page template's row — and read the downloaded file from their Downloads folder. Only if
+you cannot do either, ask them for those clicks, in those words.
 
 Do not make them describe the page to you, and do not rebuild it from the shipped
 template — they would lose every choice already made on their site. If they do choose
@@ -528,6 +603,11 @@ can only nod at the second.
 
 **Say what you changed, not how.** After an edit, one sentence about what is different
 on the page. They can see the preview; they do not need the command you ran.
+
+**Never hand them a technical step.** Files, tokens, JSON, settings and commands are
+yours (*Doing the technical part for them*). What they hear is what is happening on
+their site: "I've opened a private preview of your search page", not how you connected
+to it.
 
 **Keep the precision where it belongs.** In the workspace, in `decisions.md`, in the
 export report and in anything you write for a developer, use the exact names —
@@ -680,13 +760,31 @@ moves it. Use that when the person is not working in a project and does not want
 
 ### Deliver it
 
-The person cannot import a file they do not have. When the export succeeds, **give
-them the file** by whatever means this surface offers — attach it, write it where they
-can reach it, or offer it for download — and say what to do with it:
+The person cannot import a file they do not have — and they should not have to handle
+it either. When the export succeeds, deliver it yourself, in four steps:
 
-> In WordPress: **Templates → Saved Templates → Import**, upload this file, then point
-> the CRECS setting `crecs_custom_property_page_template_shortcode` at the new template
-> id. One template serves every property, so this is done once, not per property.
+1. **Give them the file where they can find it**: save a copy in their **Downloads**
+   folder named after their site (`property-page-<site>.json`). On a surface with no
+   file system, attach it or offer it for download instead.
+2. **Open the import for them**: in the browser, **Templates → Saved Templates**, then
+   **Import Templates**. If your browser tools can attach a file to the page, import it
+   yourself. Otherwise ask for the one step that needs their hands:
+
+   > Your new property page is ready. I've opened the import screen for you: click
+   > **Choose File**, pick **property-page-<site>.json** in your Downloads folder, then
+   > click **Import Now**. Tell me when it's done.
+
+   (The file button is the browser's own; some browsers call it **Browse**.)
+
+3. **Find the imported template yourself**: the newest row in **Saved Templates**; its
+   number is in the address of its edit link.
+4. **Making it live is their decision**, because every property page changes at once.
+   Ask in one plain sentence ("Shall I switch all your property pages to the new design
+   now?"). On a clear yes, open **CRE Cloud Solutions** settings, put that number in
+   **Custom Property Page Template** (under *Property Page Font & Colors*; the option is
+   `crecs_custom_property_page_template_shortcode`), save, and open one real property
+   page to show them the new design live. One template serves every property, so this
+   is done once, not per property.
 
 If there is nowhere to write a file, ask for the JSON on stdout and pass it along:
 

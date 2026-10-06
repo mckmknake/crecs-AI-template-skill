@@ -136,5 +136,60 @@ class NoJargonLeakInExamples(unittest.TestCase):
         self.assertEqual([], leaked, "element ids leaked into an example reply: %s" % leaked)
 
 
+class TheTechnicalPartIsTheAssistants(unittest.TestCase):
+    """The person is not technical: files, tokens, JSON and settings are the assistant's.
+
+    A client testing 1.3.1 was left to save the preview's session file and to copy and
+    paste JSON. Every one of those is a step the assistant can take itself.
+    """
+
+    def setUp(self):
+        with open(SKILL_MD, encoding="utf-8") as fh:
+            self.text = fh.read()
+        self.lower = self.text.lower()
+
+    def section(self, title):
+        lines = self.text.splitlines()
+        for i, line in enumerate(lines):
+            if line.startswith("## ") and title in line.lower():
+                body = []
+                for nxt in lines[i + 1:]:
+                    if nxt.startswith("## "):
+                        break
+                    body.append(nxt)
+                return "\n".join(body)
+        return ""
+
+    def test_there_is_a_section_that_says_so_before_the_loop(self):
+        idx = self.lower.find("## doing the technical part")
+        self.assertNotEqual(-1, idx, "SKILL.md has no section on doing the technical part")
+        self.assertLess(idx, self.lower.find("## the loop"), "it sits after the command loop")
+
+    def test_it_names_the_chores_and_forbids_handing_them_over(self):
+        body = " ".join(self.section("doing the technical part").lower().split())
+        for word in ("token", "json", "file", "command", "setting"):
+            self.assertIn(word, body, "the section does not name %s" % word)
+        self.assertIn("never ask them to copy, paste", body)
+
+    def test_the_assistant_connects_the_preview_itself(self):
+        opening = self.section("start here")
+        self.assertIn("crecs_preview.py connect", opening)
+        self.assertNotIn("they attach it", opening.lower())
+
+    def test_renewing_the_connection_is_the_assistants_too(self):
+        body = self.section("doing the technical part")
+        self.assertIn("New link", body)
+        self.assertIn("connect", body)
+
+    def test_they_are_never_sent_to_export_their_own_page(self):
+        for phrase in ("they export it", "ask them to send it", "they attach the downloaded"):
+            self.assertNotIn(phrase, self.lower)
+
+    def test_no_example_reply_hands_them_a_technical_word(self):
+        quoted = "\n".join(l for l in self.text.splitlines() if l.strip().startswith(">"))
+        for bad in ("crecs_", "token", "session file", "--", "terminal"):
+            self.assertNotIn(bad, quoted, "an example reply to the person contains %r" % bad)
+
+
 if __name__ == "__main__":
     unittest.main()

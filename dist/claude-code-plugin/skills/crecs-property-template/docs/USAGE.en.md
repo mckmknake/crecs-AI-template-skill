@@ -214,9 +214,13 @@ the counts, the profile mappings applied, and the claim level. A blocked export 
 nothing and names every blocking finding. `--allow-draft` saves an incomplete draft,
 labelled as one.
 
-Then, in WordPress: **Templates → Saved Templates → Import**, and point the CRECS
-setting `crecs_custom_property_page_template_shortcode` at the imported template id.
-One template serves every property, so this is done once, not per property.
+Then the template goes into WordPress, and the assistant does that part in the browser
+(SKILL.md, *Deliver it*): it saves the file in the person's Downloads folder, opens
+**Templates → Saved Templates → Import Templates**, the person picks the file and
+presses **Import Now**, and, on their yes, the assistant puts the new template's number
+in **CRE Cloud Solutions → Custom Property Page Template** (the
+`crecs_custom_property_page_template_shortcode` setting). One template serves every
+property, so this is done once, not per property.
 
 ### Without a project directory
 
@@ -266,8 +270,19 @@ Offline, standard library only.
 
 The page that lists the properties — map, filters, cards; usually `/properties` — is not
 an Elementor template: it has its own tool, `scripts/crecs_search.py`, and goes through
-the same preview. In WordPress, **CRE Cloud Solutions → Template preview → Preview the
-search page** hands back the session file (with `"kind": "search"`).
+the same preview. In WordPress, **CRE Cloud Solutions → Template preview → Start search
+page preview** shows the session file in a box (with `"kind": "search"`). The assistant
+reads that box from the page and saves it itself; the person never copies anything:
+
+```bash
+python3 scripts/crecs_preview.py connect <<'EOF'
+(the box's text, as the page shows it)
+EOF
+# connected to example.com: the search page preview. Session saved in ~/.crecs/preview-example.com.json
+```
+
+When the preview later says the session expired or the token changed, **New link** on
+that session in the same screen shows a new box: `connect` it the same way.
 
 > "Put the filters in a column on the left, with blue buttons, and make the map shorter
 > on phones."
@@ -276,8 +291,9 @@ search page** hands back the session file (with `"kind": "search"`).
 P=scripts/crecs_preview.py
 B=scripts/crecs_search.py
 F=./search.json
+SESSION=~/.crecs/preview-example.com.json    # the session file connect saved
 
-python3 $P current --out $F --session-file ./session.json    # what the preview shows now
+python3 $P current --out $F --session-file $SESSION    # what the preview shows now
 python3 $B show --file $F                                     # the tree, with ids
 
 # filters and results side by side, in a box; stacked on tablets and phones
@@ -296,7 +312,7 @@ python3 $B text --file $F --node 5e2a0008 --slot button --value "Type of propert
 python3 $B set --file $F --node 5e2a0004 --key map_height --device mobile --value 240px
 
 python3 $B validate --file $F
-python3 $P apply --document $F --session-file ./session.json    # the preview reloads
+python3 $P apply --document $F --session-file $SESSION    # the preview reloads
 ```
 
 What the page starts with, and which filters show:
@@ -305,11 +321,11 @@ What the page starts with, and which filters show:
 > type list, and hide the rate filter on phones."
 
 ```bash
-python3 $P options --session-file ./session.json    # the site's own type and broker names
+python3 $P options --session-file $SESSION    # the site's own type and broker names
 python3 $B set --file $F --node 5e2a0007 --key start_for_lease --value yes
 python3 $B set --file $F --node 5e2a0008 --key offer --value "Office, Retail, Industrial"
 python3 $B hide --file $F --node 5e2a000a --device mobile
-python3 $P apply --document $F --session-file ./session.json
+python3 $P apply --document $F --session-file $SESSION
 ```
 
 A starting value is a default, not a lock: visitors see For Lease ticked and can untick

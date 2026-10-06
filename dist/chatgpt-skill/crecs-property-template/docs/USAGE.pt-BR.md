@@ -227,9 +227,13 @@ contagens, os mapeamentos de perfil aplicados e o nível da afirmação. Um expo
 bloqueado não escreve nada e lista cada achado que bloqueou. `--allow-draft` salva um
 rascunho incompleto, identificado como tal.
 
-No WordPress: **Modelos → Modelos Salvos → Importar**, e aponte a opção CRECS
-`crecs_custom_property_page_template_shortcode` para o ID do modelo importado. Um
-modelo só serve todos os imóveis, então isso é feito uma vez, não por imóvel.
+Depois o modelo entra no WordPress, e essa parte o assistente faz no navegador
+(SKILL.md, *Deliver it*): salva o arquivo na pasta Downloads da pessoa, abre
+**Modelos → Modelos Salvos → Importar Modelos**, a pessoa escolhe o arquivo e clica em
+**Importar agora** e, com o "sim" dela, o assistente coloca o número do modelo novo em
+**CRE Cloud Solutions → Custom Property Page Template** (a opção
+`crecs_custom_property_page_template_shortcode`). Um modelo só serve todos os imóveis,
+então isso é feito uma vez, não por imóvel.
 
 ### Sem pasta de projeto
 
@@ -280,8 +284,19 @@ Offline, só biblioteca padrão.
 
 A página que lista os imóveis — mapa, filtros, cards; normalmente `/properties` — não é
 um template do Elementor: tem ferramenta própria, `scripts/crecs_search.py`, e passa
-pela mesma prévia. No WordPress, **CRE Cloud Solutions → Template preview → Preview the
-search page** entrega o arquivo de sessão (com `"kind": "search"`).
+pela mesma prévia. No WordPress, **CRE Cloud Solutions → Template preview → Start search
+page preview** mostra o arquivo de sessão numa caixa (com `"kind": "search"`). O
+assistente lê essa caixa na própria página e salva sozinho; a pessoa não copia nada:
+
+```bash
+python3 scripts/crecs_preview.py connect <<'EOF'
+(o texto da caixa, como a página mostra)
+EOF
+# connected to example.com: the search page preview. Session saved in ~/.crecs/preview-example.com.json
+```
+
+Se depois a prévia disser que a sessão expirou ou que o token mudou, **New link** nessa
+sessão, na mesma tela, mostra uma caixa nova: é só fazer o `connect` dela do mesmo jeito.
 
 > "Quero os filtros numa coluna à esquerda, com botões azuis, e o mapa mais baixo no
 > celular."
@@ -290,8 +305,9 @@ search page** entrega o arquivo de sessão (com `"kind": "search"`).
 P=scripts/crecs_preview.py
 B=scripts/crecs_search.py
 F=./busca.json
+SESSION=~/.crecs/preview-example.com.json    # o arquivo de sessão que o connect salvou
 
-python3 $P current --out $F --session-file ./sessao.json    # o que a prévia mostra agora
+python3 $P current --out $F --session-file $SESSION    # o que a prévia mostra agora
 python3 $B show --file $F                                    # a árvore, com os ids
 
 # filtros e resultados lado a lado, numa caixa; empilhados no tablet e no celular
@@ -310,7 +326,7 @@ python3 $B text --file $F --node 5e2a0008 --slot button --value "Tipo de imóvel
 python3 $B set --file $F --node 5e2a0004 --key map_height --device mobile --value 240px
 
 python3 $B validate --file $F
-python3 $P apply --document $F --session-file ./sessao.json    # a prévia recarrega
+python3 $P apply --document $F --session-file $SESSION    # a prévia recarrega
 ```
 
 Com o que a página começa, e quais filtros aparecem:
@@ -319,11 +335,11 @@ Com o que a página começa, e quais filtros aparecem:
 > lista de tipos e esconda o filtro de preço no celular."
 
 ```bash
-python3 $P options --session-file ./sessao.json    # os nomes de tipos e corretores do próprio site
+python3 $P options --session-file $SESSION    # os nomes de tipos e corretores do próprio site
 python3 $B set --file $F --node 5e2a0007 --key start_for_lease --value yes
 python3 $B set --file $F --node 5e2a0008 --key offer --value "Office, Retail, Industrial"
 python3 $B hide --file $F --node 5e2a000a --device mobile
-python3 $P apply --document $F --session-file ./sessao.json
+python3 $P apply --document $F --session-file $SESSION
 ```
 
 Um valor inicial é um padrão, não uma trava: o visitante vê For Lease marcado e pode
