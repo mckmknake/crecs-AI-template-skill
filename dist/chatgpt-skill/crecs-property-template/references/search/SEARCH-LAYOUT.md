@@ -98,6 +98,16 @@ These settings change what a visitor first sees, not how it looks. Each block li
 
 The plugin refuses, as `E-SL-VALUE`, a `start_checked` name that `offer` does not list, a `start_min` larger than `start_max`, both choices of a filter hidden (hide the block instead) and a size that starts in a hidden unit; and, as `E-SL-STUCK`, a starting value that cannot be seen on a device where Clear cannot be seen either (hidden itself, by its hidden choice or by a hidden box around it), because visitors there could never remove it.
 
+## The cards and the map popup
+
+The result cards and the popup a pin opens are set on the **Results** block (`crecs_search_results`) and the **Map** block (`crecs_search_map`).
+
+- **The card's lines.** `card_fields` lists the card's text lines in the order they show, from `name`, `address`, `sub_type`, `available_sf`, `available_acres`, `land_sf`, `min_sf`, `max_sf`, `rates`, `buttons`. A line not in the list is not shown; a line whose value a property lacks shows nothing for that property, as today. The photo, the type badge on it, the highlight banner and the **Map It** button hide with `photo_hide`, `badge_hide`, `banner_hide` and `map_button_hide`.
+- **The card's words.** `text_sub_type`, `text_available_sf`, `text_available_acres`, `text_land_sf`, `text_min_sf`, `text_max_sf` are the labels before the values; `text_view_button` and `text_map_button` the two buttons.
+- **The photo** keeps one proportion with `photo_ratio` (width:height), in the list and in the grid, and the photos fill it.
+- **The grid's columns** are set per device, and **none inherits** from another: `grid_columns` on computers while the map shows, `grid_columns_without_map` on computers while it is hidden, `grid_columns_tablet`, `grid_columns_mobile`. An unset one keeps the page's own: two (three on very wide screens) with the map, five without it, one on tablets and phones. `per_page` is how many results a page shows.
+- **The popup.** Until `popup_fields` is set, a pin opens the popup CRE Cloud sends, which the layout cannot change except its width (`popup_width`). Once it is set, the plugin builds the popup from the same data as the card: the photo, with the category over it, on the left, the other parts on the right in the list's order, from `photo`, `category`, `name`, `address`, `property_type`, `sub_type`, `available_sf`, `available_acres`, `land_sf`, `min_sf`, `max_sf`, `rates`, `view_button`. The size lines take the card's labels; the button's text is `text_popup_button`; the `popup`, `popup_name`, `popup_details`, `popup_category` and `popup_button` parts take colours, fonts and the rest like any other part.
+
 ## Blocks
 
 ### Page — `crecs_search_page`
@@ -127,10 +137,21 @@ Widget, required, can be hidden.
 Parts you can style:
 
 - `frame` (box): `frame_background_color`, `frame_border_style`, `frame_border_width`, `frame_border_color`, `frame_border_radius`, `frame_box_shadow`, `frame_padding`
+- `popup` (box, text): `popup_background_color`, `popup_border_style`, `popup_border_width`, `popup_border_color`, `popup_border_radius`, `popup_box_shadow`, `popup_padding`, `popup_color`, `popup_font_family`, `popup_font_size`, `popup_font_weight`, `popup_line_height`, `popup_letter_spacing`, `popup_text_transform`, `popup_font_style`, `popup_text_align`
+- `popup_name` (text): `popup_name_color`, `popup_name_font_family`, `popup_name_font_size`, `popup_name_font_weight`, `popup_name_line_height`, `popup_name_letter_spacing`, `popup_name_text_transform`, `popup_name_font_style`, `popup_name_text_align`
+- `popup_details` (text): `popup_details_color`, `popup_details_font_family`, `popup_details_font_size`, `popup_details_font_weight`, `popup_details_line_height`, `popup_details_letter_spacing`, `popup_details_text_transform`, `popup_details_font_style`, `popup_details_text_align`
+- `popup_category` (box, text): `popup_category_background_color`, `popup_category_border_style`, `popup_category_border_width`, `popup_category_border_color`, `popup_category_border_radius`, `popup_category_box_shadow`, `popup_category_padding`, `popup_category_color`, `popup_category_font_family`, `popup_category_font_size`, `popup_category_font_weight`, `popup_category_line_height`, `popup_category_letter_spacing`, `popup_category_text_transform`, `popup_category_font_style`, `popup_category_text_align`
+- `popup_button` (box, text, hover): `popup_button_background_color`, `popup_button_border_style`, `popup_button_border_width`, `popup_button_border_color`, `popup_button_border_radius`, `popup_button_box_shadow`, `popup_button_padding`, `popup_button_color`, `popup_button_font_family`, `popup_button_font_size`, `popup_button_font_weight`, `popup_button_line_height`, `popup_button_letter_spacing`, `popup_button_text_transform`, `popup_button_font_style`, `popup_button_text_align`
+
+Texts:
+
+- `text_popup_button`: "View Listing"
 
 Options:
 
 - `start_map`: how the map starts on computers; unset, the settings screen decides. Value: one of `shown`, `hidden`.
+- `popup_fields`: what the popup a pin opens shows, built by the plugin from the card's data: the photo, with the category over it, on the left, the other parts on the right in this order; unset, the popup CRE Cloud sends. Value: a list of parts, each once, in the order they show, from `photo`, `category`, `name`, `address`, `property_type`, `sub_type`, `available_sf`, `available_acres`, `land_sf`, `min_sf`, `max_sf`, `rates`, `view_button`.
+- `popup_width`: the popup's width in pixels; unset, 370. Value: a whole number from 220 to 600.
 
 ### Filters — `crecs_search_filters`
 
@@ -348,11 +369,32 @@ Parts you can style:
 - `details` (text): `details_color`, `details_font_family`, `details_font_size`, `details_font_weight`, `details_line_height`, `details_letter_spacing`, `details_text_transform`, `details_font_style`, `details_text_align`
 - `rate` (text): `rate_color`, `rate_font_family`, `rate_font_size`, `rate_font_weight`, `rate_line_height`, `rate_letter_spacing`, `rate_text_transform`, `rate_font_style`, `rate_text_align`
 - `button` (box, text, hover): `button_background_color`, `button_border_style`, `button_border_width`, `button_border_color`, `button_border_radius`, `button_box_shadow`, `button_padding`, `button_color`, `button_font_family`, `button_font_size`, `button_font_weight`, `button_line_height`, `button_letter_spacing`, `button_text_transform`, `button_font_style`, `button_text_align`
-- `badge` (box, text): `badge_background_color`, `badge_border_style`, `badge_border_width`, `badge_border_color`, `badge_border_radius`, `badge_box_shadow`, `badge_padding`, `badge_color`, `badge_font_family`, `badge_font_size`, `badge_font_weight`, `badge_line_height`, `badge_letter_spacing`, `badge_text_transform`, `badge_font_style`, `badge_text_align`
+- `badge` (box, text, toggle): `badge_background_color`, `badge_border_style`, `badge_border_width`, `badge_border_color`, `badge_border_radius`, `badge_box_shadow`, `badge_padding`, `badge_color`, `badge_font_family`, `badge_font_size`, `badge_font_weight`, `badge_line_height`, `badge_letter_spacing`, `badge_text_transform`, `badge_font_style`, `badge_text_align`, `badge_hide`
+- `banner` (box, text, toggle): `banner_background_color`, `banner_border_style`, `banner_border_width`, `banner_border_color`, `banner_border_radius`, `banner_box_shadow`, `banner_padding`, `banner_color`, `banner_font_family`, `banner_font_size`, `banner_font_weight`, `banner_line_height`, `banner_letter_spacing`, `banner_text_transform`, `banner_font_style`, `banner_text_align`, `banner_hide`
+- `photo` (toggle): `photo_hide`
+- `map_button` (toggle): `map_button_hide`
+
+Texts:
+
+- `text_sub_type`: "Type"
+- `text_available_sf`: "Available SF"
+- `text_available_acres`: "Available AC"
+- `text_land_sf`: "Land SF"
+- `text_min_sf`: "Min Available SF"
+- `text_max_sf`: "Max Available SF"
+- `text_view_button`: "View"
+- `text_map_button`: "Map It"
 
 Options:
 
 - `start_view`: how the results start; unset, the settings screen decides. Value: one of `list`, `grid`.
+- `card_fields`: the card's text lines, in this order; a line not named is not shown; unset, all of them as the page has them. Value: a list of parts, each once, in the order they show, from `name`, `address`, `sub_type`, `available_sf`, `available_acres`, `land_sf`, `min_sf`, `max_sf`, `rates`, `buttons`.
+- `photo_ratio`: the card photo's proportion, width to height; unset, as the page has it. Value: one of `4:3`, `3:2`, `16:9`, `1:1`.
+- `grid_columns`: cards per row in the grid on computers while the map shows; unset, the page's own (2, or 3 on very wide screens). Value: a whole number from 1 to 6.
+- `grid_columns_tablet`: cards per row in the grid on tablets; unset, 1. Value: a whole number from 1 to 4.
+- `grid_columns_mobile`: cards per row in the grid on phones; unset, 1. Value: a whole number from 1 to 2.
+- `grid_columns_without_map`: cards per row in the grid on computers while the map is hidden; unset, the page's own (5). Value: a whole number from 1 to 8.
+- `per_page`: how many results a page shows; unset, the settings screen decides. Value: a whole number from 1 to 100.
 
 ### Discover-more links — `crecs_search_seo_links`
 

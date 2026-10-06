@@ -108,6 +108,8 @@ class Vocabulary:
             return "" if ok else "must be a number from 0 to %d" % self.limits["amount_max"]
         if kind == "list":
             return self._list_problem(value)
+        if kind == "fields":
+            return self._fields_problem(spec, value)
         if kind == "number":
             ok = _is_int(value) and spec["min"] <= value <= spec["max"]
             return "" if ok else "must be a whole number from %d to %d" % (spec["min"], spec["max"])
@@ -167,6 +169,24 @@ class Vocabulary:
             if key in seen:
                 return 'names "%s" twice' % item
             seen.add(key)
+        return ""
+
+    @staticmethod
+    def _fields_problem(spec, value):
+        """Why a choice of parts is not acceptable, or ''. Each part once, in its order."""
+        parts = ", ".join(spec["options"])
+        items = php_list(value)
+        if items is None:
+            return "must be a list of parts from: " + parts
+        seen = set()
+        for item in items:
+            if not isinstance(item, str) or item not in spec["options"]:
+                if isinstance(item, str):
+                    return 'has no part "%s"; its parts are: %s' % (item, parts)
+                return "must be a list of parts from: " + parts
+            if item in seen:
+                return 'names "%s" twice' % item
+            seen.add(item)
         return ""
 
     # -- documents ----------------------------------------------------------------
@@ -372,8 +392,9 @@ def is_unset(spec, value):
     if value is None or value == "":
         return True
     kind = spec["type"]
-    # An empty list leaves the list as the site has it; PHP decodes [] and {} alike.
-    if kind == "list" and isinstance(value, (list, dict)) and not value:
+    # An empty list leaves the list as the site has it, and an empty choice of parts the
+    # card or the popup as the page has it; PHP decodes [] and {} alike.
+    if kind in ("list", "fields") and isinstance(value, (list, dict)) and not value:
         return True
     if kind == "slider" and isinstance(value, dict) and value.get("size") == "":
         return True

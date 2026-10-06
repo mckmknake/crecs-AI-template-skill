@@ -126,7 +126,8 @@ def parse_value(spec, raw):
     JSON is taken as it is. Otherwise the familiar shorthand for the control's type: `24px`
     for a size, `8px 16px` for spacing on four sides, `0 2px 8px 0 rgba(0,0,0,0.2)` for a
     shadow, `yes` / `no` for a switch or a hide, `5,000` for an amount, `Office, Retail` for
-    a list of names (a name with a comma in it needs JSON: '["Doe, Jane"]').
+    a list of names (a name with a comma in it needs JSON: '["Doe, Jane"]'), and
+    `name, rates, buttons` for a choice of parts.
     """
     kind = spec["type"]
     try:
@@ -145,7 +146,7 @@ def parse_value(spec, raw):
         if not re.match(r"^[0-9]+(?:\.[0-9]+)?$", text):
             raise Usage("must be a number, such as 5000 or 2.5")
         return _number(text)
-    if kind == "list":
+    if kind in ("list", "fields"):
         if parsed is None or isinstance(parsed, list):
             return parsed
         if parsed is raw:  # not JSON: names separated by commas
@@ -486,6 +487,8 @@ def control_rows(vocab, document, node_id, match=None):
             allowed = "number 0..%s" % vocab.limits["amount_max"]
         elif spec["type"] == "list":
             allowed = "names, comma-separated or a JSON list"
+        elif spec["type"] == "fields":
+            allowed = "parts in order, from " + "|".join(spec["options"])
         elif spec["type"] == "hide":
             allowed = "yes|no"
         elif spec["type"] == "text":
@@ -621,7 +624,7 @@ def main(argv=None):
             if hides:
                 flags.append("hides on " + "/".join(hides))
             if any(c.get("group") == "option" for c in block["controls"].values()):
-                flags.append("has starting options")
+                flags.append("has options")
             rows.append({"type": block_type, "label": block["label"], "flags": flags,
                          "texts": list(block["texts"])})
         _emit(rows, args.json, lambda r: [print("%-34s %-28s %s" % (
@@ -664,7 +667,7 @@ def main(argv=None):
                     for slot, value in d["texts"].items():
                         print('text %s: "%s"' % (slot, value))
                     if d["options"]:
-                        print("what it starts with: %s" % ", ".join(d["options"]))
+                        print("options: %s" % ", ".join(d["options"]))
                 _emit(detail, args.json, text)
             else:
                 lines = tree_lines(vocab, document)

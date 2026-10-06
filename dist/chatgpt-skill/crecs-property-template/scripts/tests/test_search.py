@@ -322,7 +322,33 @@ class Commands(unittest.TestCase):
     def test_show_names_what_a_block_starts_with(self):
         code, out, _err = self.run_cli("show", "--node", SIZE)
         self.assertEqual(0, code)
-        self.assertIn("what it starts with: start_unit, start_min, start_max", out)
+        self.assertIn("options: start_unit, start_min, start_max", out)
+
+    # -- the cards and the map popup ---------------------------------------------
+
+    def test_the_cards_lines_and_the_popups_parts_in_plain_words(self):
+        self.assertEqual(0, self.run_cli("set", "--node", RESULTS, "--key", "card_fields",
+                                         "--value", "name, rates, buttons")[0])
+        self.assertEqual(["name", "rates", "buttons"], self.settings(RESULTS)["card_fields"])
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "popup_fields",
+                                         "--value", "photo, name, view_button")[0])
+        self.assertEqual(["photo", "name", "view_button"], self.settings(MAP)["popup_fields"])
+        code, _out, err = self.run_cli("set", "--node", RESULTS, "--key", "card_fields",
+                                       "--value", "name, gallery")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn('has no part "gallery"', err)
+        self.assertEqual([], self.vocab.check(self.doc()))
+
+    def test_columns_are_set_per_device(self):
+        self.assertEqual(0, self.run_cli("set", "--node", RESULTS, "--key", "grid_columns",
+                                         "--value", "3")[0])
+        self.assertEqual(0, self.run_cli("set", "--node", RESULTS, "--key", "grid_columns",
+                                         "--device", "mobile", "--value", "1")[0])
+        self.assertEqual({"grid_columns": 3, "grid_columns_mobile": 1}, self.settings(RESULTS))
+        code, _out, err = self.run_cli("set", "--node", RESULTS, "--key", "grid_columns",
+                                       "--device", "mobile", "--value", "3")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("from 1 to 2", err)
 
     # -- the file ----------------------------------------------------------------
 

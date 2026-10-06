@@ -853,16 +853,41 @@ python3 scripts/crecs_search.py show --file ./search.json
   which property types and brokers the lists offer, and in what order; whether the
   results start as a list or a grid, and sorted how; whether the map starts shown on
   computers.
+- **The result cards**: which lines a card shows — name, address, type, the sizes, the
+  price, the buttons — and in what order; the words of its labels and buttons; hiding
+  the photo, the type badge on it, the highlight banner or the **Map It** button; the
+  photo's proportion; how many cards per row in the grid, separately on computers with
+  the map, computers without it, tablets and phones; how many results a page shows.
+- **The popup a pin opens on the map**: what it shows and in what order, its width, the
+  words of its button, its colours and fonts.
 
 **Not yet**, so do not promise them and do not imitate them: the map's zoom, centre,
-controls and colours, its pins and clusters, the popup on the map; what a result card
-shows and how many columns the grid has; how many results a page shows; mouse-over
-effects between the cards and the pins. Say these are planned, and note the request.
-Never fake one with something else — a filter "hidden" by painting it white still sits
-in the page, and the visitor still tabs into it.
+controls and colours, its pins and clusters; mouse-over effects between the cards and
+the pins. Say these are planned, and note the request. Never fake one with something
+else — a filter "hidden" by painting it white still sits in the page, and the visitor
+still tabs into it.
 
 **By design, never**: a filter the visitor cannot remove. What they can have is a
 starting value, below.
+
+### Cards and the map popup
+
+- **A card's lines** are one list in order (`card_fields` on the results block). A
+  line left out is not shown, so when they ask to hide one, keep every other line they
+  have now. A line a property has no value for shows nothing on that card, as today.
+- **Columns are per device and none follows another.** When they change the columns on
+  computers, ask whether phones and tablets should change too; left alone, they keep
+  one card per row. The map's own button hides the map on computers, and the grid then
+  has its own columns (`grid_columns_without_map`).
+- **The popup is CRE Cloud's own until you choose its parts** (`popup_fields` on the
+  map block). From then the plugin builds it from the card's data: the photo, with the
+  category over it, on the left; the other parts on the right, in the list's order. Put
+  in every part they want to keep, and tell them in a sentence that the popup now
+  follows their design. Only its width can change while it is still CRE Cloud's.
+- **To check the popup**, click a pin in the preview. If the map shows an error there
+  instead of the streets, the site's Google key does not accept the preview's address:
+  say the map cannot load here, describe the popup instead, and let them see it on the
+  live page once published.
 
 ### Starting values and shorter lists
 
@@ -917,7 +942,8 @@ crecs_preview.py options --session-file <file>          the site's property type
 Every command takes `--file ./search.json` (or set `$CRECS_SEARCH_FILE`) and `--help`.
 Values are JSON or the usual shorthand: `#0a3d62`, `24px`, `8px 16px`,
 `0 2px 8px 0 rgba(0,0,0,0.2)`, `yes` / `no`, `5,000` for an amount, `Office, Retail`
-for a list of names (a name with a comma in it goes as JSON: `'["Doe, Jane"]'`).
+for a list of names (a name with a comma in it goes as JSON: `'["Doe, Jane"]'`), and
+`name, rates, buttons` for the parts of a card or of the popup, in order.
 
 Each change is checked against the plugin's own rules first, and one the plugin would
 refuse is not written — the command says why. After each change, `apply`: the preview
