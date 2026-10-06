@@ -24,6 +24,7 @@ Usage:
     crecs_preview.py export --out export.json
     crecs_preview.py close
     crecs_preview.py watch [--interval 2.5]
+    crecs_preview.py options        (a search page session: the site's types and brokers)
 
 Exit codes: 0 success, 2 refused by the server (conflict, invalid, rate limited),
 3 transport or configuration problem.
@@ -160,6 +161,13 @@ class Client:
     def close(self) -> dict:
         return self._call("DELETE", self._session_path())
 
+    # -- search page sessions ---------------------------------------------
+
+    def search_options(self) -> dict:
+        """The property types and brokers the site lists, by the names `offer` and
+        `start_checked` use."""
+        return self._call("GET", self._session_path("/search-options"))
+
 
 #: Where a person goes to start a preview, reissue a link or take a fresh session file.
 ADMIN_SCREEN = "WordPress -> CRE Cloud Solutions -> Template preview"
@@ -274,7 +282,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="CRECS preview transport (delivery 4)", parents=[common])
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    for name in ("capabilities", "resume", "state", "undo", "close"):
+    for name in ("capabilities", "resume", "state", "undo", "close", "options"):
         sub.add_parser(name, parents=[common])
 
     cur = sub.add_parser("current", parents=[common])
@@ -352,6 +360,16 @@ def main(argv=None) -> int:
             out = client.undo()
         elif args.cmd == "close":
             out = client.close()
+        elif args.cmd == "options":
+            out = client.search_options()
+            if not args.json:
+                # Every name in full, one a line: these are what a layout must spell.
+                for key, label in (("property_types", "property types"), ("brokers", "brokers")):
+                    names = out.get(key) or []
+                    print(f"{label} ({len(names)}):")
+                    for name in names:
+                        print(f"  {name}")
+                return 0
         else:  # pragma: no cover - argparse guarantees one of the above
             raise Transport(f"unknown command {args.cmd}")
 
@@ -375,7 +393,9 @@ def main(argv=None) -> int:
             print(f"  the current head is {exc.payload['head']}; re-read it and rebase", file=sys.stderr)
         for finding in (exc.payload.get("findings") or [])[:8]:
             if finding.get("level") == "error":
-                print(f"  [{finding.get('code')}] {finding.get('element')}: {finding.get('message')}", file=sys.stderr)
+                # A property template's findings name an element; a search layout's, a block.
+                where = finding.get("element") or finding.get("node")
+                print(f"  [{finding.get('code')}] {where}: {finding.get('message')}", file=sys.stderr)
         return 2
     except Transport as exc:
         print(f"error: {exc}", file=sys.stderr)

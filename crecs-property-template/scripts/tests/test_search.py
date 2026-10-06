@@ -14,8 +14,11 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import crecs_preview
 from crecs import search_cli
 from crecs.search_layout import REFERENCE, Vocabulary, blocking, find, normalise
 from crecs_preview import canonical_hash
@@ -25,12 +28,12 @@ VECTORS = os.path.join(HERE, "fixtures", "search-vectors.json")
 
 CODES = {"E-SL-SHAPE", "E-SL-ROOT", "E-SL-NODE", "E-SL-ID", "E-SL-BLOCK", "E-SL-ELTYPE",
          "E-SL-CHILDREN", "E-SL-REQUIRED", "E-SL-ONCE", "E-SL-WITHIN", "E-SL-NOT-WITHIN",
-         "E-SL-SETTING", "E-SL-VALUE", "E-SL-LIMIT"}
+         "E-SL-SETTING", "E-SL-VALUE", "E-SL-STUCK", "E-SL-LIMIT"}
 
 # Ids in the built-in layout, as the reference records it.
 PAGE, WRAPPER, MAP, FILTERS = "5e2a0001", "5e2a0002", "5e2a0004", "5e2a0005"
-PROPERTY_TYPE, RATE, CLEAR = "5e2a0008", "5e2a000a", "5e2a000c"
-LISTINGS, SORT = "5e2a000d", "5e2a000f"
+KEYWORD, PROPERTY_TYPE, SIZE, RATE, CLEAR = "5e2a0006", "5e2a0008", "5e2a0009", "5e2a000a", "5e2a000c"
+LISTINGS, SORT, RESULTS = "5e2a000d", "5e2a000f", "5e2a0011"
 
 
 def vectors():
@@ -246,9 +249,80 @@ class Commands(unittest.TestCase):
         box = json.loads(out)["node"]
         self.assertEqual(0, self.run_cli("hide", "--node", box, "--device", "mobile")[0])
         self.assertEqual("yes", self.settings(box)["_hide_mobile"])
-        code, _out, err = self.run_cli("hide", "--node", MAP, "--device", "mobile")
+        # The map hides where it has no button of its own, and only there.
+        self.assertEqual(0, self.run_cli("hide", "--node", MAP, "--device", "mobile")[0])
+        code, _out, err = self.run_cli("hide", "--node", MAP, "--device", "desktop")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("_hide_desktop", err)
+        # The results never hide: the page always keeps a view.
+        code, _out, err = self.run_cli("hide", "--node", RESULTS, "--device", "mobile")
         self.assertEqual(search_cli.EXIT_USAGE, code)
         self.assertIn("_hide_mobile", err)
+
+    # -- what the page starts with -------------------------------------------------
+
+    def test_a_shorter_list_that_starts_checked(self):
+        self.assertEqual(0, self.run_cli("set", "--node", PROPERTY_TYPE, "--key", "offer",
+                                         "--value", "Office, Industrial, Retail")[0])
+        self.assertEqual(0, self.run_cli("set", "--node", PROPERTY_TYPE, "--key", "start_checked",
+                                         "--value", '["office"]')[0])
+        self.assertEqual(["Office", "Industrial", "Retail"], self.settings(PROPERTY_TYPE)["offer"])
+        self.assertEqual(["office"], self.settings(PROPERTY_TYPE)["start_checked"])
+        self.assertEqual([], self.vocab.check(self.doc()))
+        # An empty list is no list: the setting goes, and the site's whole list is back.
+        self.assertEqual(0, self.run_cli("set", "--node", PROPERTY_TYPE, "--key", "start_checked",
+                                         "--value", "[]")[0])
+        self.assertNotIn("start_checked", self.settings(PROPERTY_TYPE))
+
+    def test_a_start_the_list_does_not_offer_is_refused(self):
+        self.run_cli("set", "--node", PROPERTY_TYPE, "--key", "offer", "--value", "Office")
+        before = self.raw()
+        code, _out, err = self.run_cli("set", "--node", PROPERTY_TYPE, "--key", "start_checked",
+                                       "--value", "Retail")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn('names "Retail", which "offer" does not list', err)
+        self.assertEqual(before, self.raw())
+
+    def test_amounts_as_people_write_them(self):
+        self.assertEqual(0, self.run_cli("set", "--node", SIZE, "--key", "start_min",
+                                         "--value", "5,000")[0])
+        self.assertEqual(5000, self.settings(SIZE)["start_min"])
+        self.assertEqual(0, self.run_cli("set", "--node", RATE, "--key", "start_max",
+                                         "--value", "$12.50")[0])
+        self.assertEqual(12.5, self.settings(RATE)["start_max"])
+        code, _out, err = self.run_cli("set", "--node", SIZE, "--key", "start_max", "--value", "1000")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn('"start_min" is larger than "start_max"', err)
+        code, _out, _err = self.run_cli("set", "--node", SIZE, "--key", "start_max", "--value", "lots")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+
+    def test_a_starting_value_nobody_could_remove_is_refused(self):
+        self.assertEqual(0, self.run_cli("set", "--node", KEYWORD, "--key", "start_text",
+                                         "--value", "Warehouse")[0])
+        self.assertEqual(0, self.run_cli("hide", "--node", KEYWORD, "--device", "mobile")[0])
+        before = self.raw()
+        code, _out, err = self.run_cli("hide", "--node", CLEAR, "--device", "mobile")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn("E-SL-STUCK", err)
+        self.assertEqual(before, self.raw())
+        # Clear may hide where the starting value can be seen.
+        self.assertEqual(0, self.run_cli("hide", "--node", CLEAR, "--device", "tablet")[0])
+
+    def test_a_hidden_choice_and_the_unit_the_size_starts_in(self):
+        code, _out, err = self.run_cli("set", "--node", SIZE, "--key", "square_feet_option_hide",
+                                       "--value", "yes")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn("starts in square_feet", err)
+        self.assertEqual(0, self.run_cli("set", "--node", SIZE, "--key", "start_unit",
+                                         "--value", "acres")[0])
+        self.assertEqual(0, self.run_cli("set", "--node", SIZE, "--key", "square_feet_option_hide",
+                                         "--value", "yes")[0])
+        self.assertEqual([], self.vocab.check(self.doc()))
+
+    def test_show_names_what_a_block_starts_with(self):
+        code, out, _err = self.run_cli("show", "--node", SIZE)
+        self.assertEqual(0, code)
+        self.assertIn("what it starts with: start_unit, start_min, start_max", out)
 
     # -- the file ----------------------------------------------------------------
 
@@ -281,6 +355,50 @@ class Commands(unittest.TestCase):
         self.assertEqual(search_cli.EXIT_REFUSED, code)
         self.assertIn("E-SL-REQUIRED", out)
         self.assertTrue(blocking(self.vocab.check(doc)))
+
+
+class PreviewOptions(unittest.TestCase):
+    """crecs_preview.py options: the site's own names, in full, and never the token."""
+
+    def test_the_names_come_in_full_and_the_token_never_shows(self):
+        seen = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen["path"] = self.path
+                seen["auth"] = self.headers.get("Authorization")
+                body = json.dumps({"property_types": ["Industrial", "Office"],
+                                   "brokers": ["Jane Doe, SIOR"]}).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):  # keep the test output readable
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        folder = tempfile.mkdtemp(prefix="crecs-options-test-")
+        try:
+            session = os.path.join(folder, "session.json")
+            with open(session, "w", encoding="utf-8") as fh:
+                json.dump({"id": "ps_test", "token": "token-secret-123",
+                           "base": "http://127.0.0.1:%d" % server.server_port}, fh)
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = crecs_preview.main(["options", "--session-file", session])
+        finally:
+            server.shutdown()
+            server.server_close()
+            shutil.rmtree(folder, ignore_errors=True)
+        self.assertEqual(0, code)
+        self.assertEqual("/wp-json/crecs/preview/v1/sessions/ps_test/search-options", seen["path"])
+        self.assertEqual("Bearer token-secret-123", seen["auth"])
+        self.assertEqual("property types (2):\n  Industrial\n  Office\nbrokers (1):\n  Jane Doe, SIOR\n",
+                         out.getvalue())
+        self.assertNotIn("token-secret-123", out.getvalue() + err.getvalue())
 
 
 class Reference(unittest.TestCase):

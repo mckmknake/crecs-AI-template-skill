@@ -100,8 +100,14 @@ class Vocabulary:
         if kind == "font":
             return "" if isinstance(value, str) and value in self.fonts else \
                 "must be one of the fonts the site offers: " + ", ".join(self.fonts)
-        if kind == "switch":
+        if kind in ("switch", "hide"):
             return "" if value == "yes" else "must be 'yes' or empty"
+        if kind == "amount":
+            ok = isinstance(value, (int, float)) and not isinstance(value, bool) \
+                and 0 <= value <= self.limits["amount_max"]
+            return "" if ok else "must be a number from 0 to %d" % self.limits["amount_max"]
+        if kind == "list":
+            return self._list_problem(value)
         if kind == "number":
             ok = _is_int(value) and spec["min"] <= value <= spec["max"]
             return "" if ok else "must be a whole number from %d to %d" % (spec["min"], spec["max"])
@@ -145,6 +151,24 @@ class Vocabulary:
             return ""
         return "has a type this plugin does not know"
 
+    def _list_problem(self, value):
+        """Why a list of names is not acceptable, or ''. Names compare as name_key() has them."""
+        items = php_list(value)
+        if items is None:
+            return "must be a list of names"
+        if len(items) > self.limits["list_max"]:
+            return "must hold at most %d names" % self.limits["list_max"]
+        seen = set()
+        for item in items:
+            if not isinstance(item, str) or _php_trim(item) == "" or not _is_utf8(item) \
+                    or _CONTROL_CHAR.search(item) or len(item) > self.limits["text_max"]:
+                return "must hold names of one line, at most %d characters each" % self.limits["text_max"]
+            key = name_key(item)
+            if key in seen:
+                return 'names "%s" twice' % item
+            seen.add(key)
+        return ""
+
     # -- documents ----------------------------------------------------------------
 
     def check(self, document):
@@ -167,7 +191,7 @@ class Vocabulary:
                                 "The content must be exactly one crecs_search_page block, "
                                 "with everything else inside it."))
 
-        state = {"ids": set(), "counts": {}, "nodes": 0, "depth": 0}
+        state = {"ids": set(), "counts": {}, "nodes": 0, "depth": 0, "starts": [], "clear_hidden": []}
         self._walk(nodes, [], state, out)
 
         for block_type, block in self.blocks.items():
@@ -182,6 +206,16 @@ class Vocabulary:
                     "E-SL-ONCE", None,
                     'The "%s" block (%s) appears %d times; it may appear once, because it '
                     "carries ids the page's scripts look up." % (block["label"], block_type, n)))
+        # A filter may start with a value, and visitors must always be able to remove it:
+        # by the filter itself, or by Clear. Unseen where Clear is unseen too, they could not.
+        for start in state["starts"]:
+            stuck = [device for device in start["devices"] if device in state["clear_hidden"]]
+            if stuck:
+                out.append(_finding(
+                    "E-SL-STUCK", start["node"],
+                    'The "%s" block starts with a value that cannot be seen on %s, where Clear '
+                    "cannot be seen either: visitors there could never remove it."
+                    % (start["label"], ", ".join(stuck))))
         if state["nodes"] > self.limits["max_nodes"] or state["depth"] > self.limits["max_depth"]:
             out.append(_finding(
                 "E-SL-LIMIT", None,
@@ -190,7 +224,8 @@ class Vocabulary:
                    self.limits["max_depth"])))
         return out
 
-    def _walk(self, nodes, ancestors, state, out):
+    def _walk(self, nodes, ancestors, state, out, hidden_above=()):
+        """`hidden_above`: the devices where a box around these nodes is hidden."""
         state["depth"] = max(state["depth"], len(ancestors) + 1)
         for node in nodes:
             state["nodes"] += 1
@@ -253,8 +288,78 @@ class Vocabulary:
                     out.append(_finding("E-SL-VALUE", node_id,
                                         '%s "%s" %s.' % (block_type, name, problem)))
 
+            # Where visitors cannot see this block: where it, or a box around it, is hidden.
+            settings = dict(_items(node["settings"]))
+            hidden = [device for device in ("desktop", "tablet", "mobile")
+                      if device in hidden_above
+                      or ("_hide_" + device in controls and settings.get("_hide_" + device) == "yes")]
+
+            self._check_together(block_type, node_id, block, settings, controls, hidden, state, out)
+
             if elements:
-                self._walk(elements, ancestors + [block_type], state, out)
+                self._walk(elements, ancestors + [block_type], state, out, hidden)
+
+    def _check_together(self, block_type, node_id, block, settings, controls, hidden, state, out):
+        """Rules between one block's settings, and what the Clear rule needs to know.
+
+        A setting that is itself refused, or not set, takes no part.
+        """
+        def is_set(name):
+            return name in controls and settings.get(name) is not None \
+                and not is_unset(controls[name], settings[name]) \
+                and self.problem(controls[name], settings[name]) == ""
+
+        def on(name):
+            return is_set(name) and settings[name] == "yes"
+
+        # Every name a list starts with must be one the list offers, or it would be checked
+        # where nobody could uncheck it.
+        if is_set("offer") and is_set("start_checked"):
+            offered = {name_key(name) for name in php_list(settings["offer"])}
+            for name in php_list(settings["start_checked"]):
+                if name_key(name) not in offered:
+                    out.append(_finding(
+                        "E-SL-VALUE", node_id,
+                        '%s "start_checked" names "%s", which "offer" does not list, so '
+                        "visitors could not uncheck it." % (block_type, name)))
+                    break
+
+        if is_set("start_min") and is_set("start_max") and settings["start_min"] > settings["start_max"]:
+            out.append(_finding("E-SL-VALUE", node_id,
+                                '%s "start_min" is larger than "start_max".' % block_type))
+
+        # A filter whose two choices are both hidden is a hidden filter: say so. Otherwise
+        # the unit the page starts with must be one visitors can see.
+        both_hidden = False
+        for first, second in (("for_sale_option_hide", "for_lease_option_hide"),
+                              ("square_feet_option_hide", "acres_option_hide")):
+            if first in controls and on(first) and on(second):
+                out.append(_finding("E-SL-VALUE", node_id,
+                                    "%s hides both of its choices: hide the whole block instead."
+                                    % block_type))
+                both_hidden = True
+        if "start_unit" in controls and not both_hidden:
+            unit = settings["start_unit"] if is_set("start_unit") else "square_feet"
+            if on(unit + "_option_hide"):
+                out.append(_finding("E-SL-VALUE", node_id,
+                                    "%s starts in %s, whose choice is hidden." % (block_type, unit)))
+
+        # What the Clear rule in check() needs: where Clear is hidden, and every filter that
+        # starts with a value, with the devices where visitors cannot see it.
+        if block_type == "crecs_search_filter_clear":
+            state["clear_hidden"] = list(hidden)
+            return
+        if not block["within"]:
+            return
+        starts = any(is_set(name) for name in ("start_text", "start_checked", "start_min", "start_max"))
+        for choice in ("for_sale", "for_lease"):
+            if on("start_" + choice):
+                starts = True
+                # A choice that starts checked but is hidden can only be cleared by Clear.
+                if on(choice + "_option_hide"):
+                    hidden = ["desktop", "tablet", "mobile"]
+        if starts and hidden:
+            state["starts"].append({"node": node_id, "label": block["label"], "devices": list(hidden)})
 
 
 # ---------------------------------------------------------------------------
@@ -267,6 +372,9 @@ def is_unset(spec, value):
     if value is None or value == "":
         return True
     kind = spec["type"]
+    # An empty list leaves the list as the site has it; PHP decodes [] and {} alike.
+    if kind == "list" and isinstance(value, (list, dict)) and not value:
+        return True
     if kind == "slider" and isinstance(value, dict) and value.get("size") == "":
         return True
     if kind == "dimensions":
@@ -298,6 +406,44 @@ def is_number(value):
 
 def _is_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
+
+
+_ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+
+
+def _php_trim(value):
+    """PHP's trim(): these six characters only, not every Unicode space."""
+    return value.strip(" \t\n\r\x00\x0b")
+
+
+def name_key(name):
+    """A name as the page compares it: trimmed, ASCII letters lowercased.
+
+    The checkboxes' values are the site's names lowercased by the browser, and a name that
+    differs only in case or surrounding spaces is the same name.
+    """
+    return _php_trim(str(name)).translate(_ASCII_LOWER)
+
+
+def php_list(value):
+    """The items of a value PHP would take for a list, or None.
+
+    PHP decodes a JSON object whose keys are "0", "1"… in that order into the same array
+    as the JSON list, so the plugin accepts it as one.
+    """
+    if isinstance(value, list):
+        return list(value)
+    if isinstance(value, dict) and list(value) == [str(i) for i in range(len(value))]:
+        return list(value.values())
+    return None
+
+
+def _is_utf8(value):
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def _strict_in(value, options):

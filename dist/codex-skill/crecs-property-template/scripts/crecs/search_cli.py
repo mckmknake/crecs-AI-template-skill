@@ -28,7 +28,7 @@ import tempfile
 
 from . import __version__
 from .search_layout import (DEVICES, SIDES, SearchLayoutError, Vocabulary, blocking, find,
-                            new_id, normalise, settings_of, walk)
+                            is_unset, new_id, normalise, settings_of, walk)
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -125,7 +125,8 @@ def parse_value(spec, raw):
 
     JSON is taken as it is. Otherwise the familiar shorthand for the control's type: `24px`
     for a size, `8px 16px` for spacing on four sides, `0 2px 8px 0 rgba(0,0,0,0.2)` for a
-    shadow, `yes` / `no` for a switch.
+    shadow, `yes` / `no` for a switch or a hide, `5,000` for an amount, `Office, Retail` for
+    a list of names (a name with a comma in it needs JSON: '["Doe, Jane"]').
     """
     kind = spec["type"]
     try:
@@ -135,7 +136,26 @@ def parse_value(spec, raw):
 
     if kind in ("color", "select", "font", "text"):
         return parsed if isinstance(parsed, str) else raw
-    if kind == "switch":
+    if kind == "amount":
+        if isinstance(parsed, (int, float)) and not isinstance(parsed, bool):
+            return parsed
+        text = re.sub(r"[\s,_]", "", str(parsed)).lstrip("$")
+        if text == "":
+            return None
+        if not re.match(r"^[0-9]+(?:\.[0-9]+)?$", text):
+            raise Usage("must be a number, such as 5000 or 2.5")
+        return _number(text)
+    if kind == "list":
+        if parsed is None or isinstance(parsed, list):
+            return parsed
+        if parsed is raw:  # not JSON: names separated by commas
+            names = [name.strip() for name in raw.split(",")]
+        elif isinstance(parsed, str):  # one name, as a JSON string
+            names = [parsed]
+        else:
+            raise Usage('give the names as a JSON list, ["Office", "Retail"], or separated by commas')
+        return [name for name in names if name] or None
+    if kind in ("switch", "hide"):
         word = str(parsed).strip().lower() if not isinstance(parsed, bool) else ("yes" if parsed else "no")
         if word in ("yes", "true", "on", "1"):
             return "yes"
@@ -258,7 +278,7 @@ class Editor:
         node, *_ = self.node(node_id)
         name, spec = self.control_name(node, key, device, hover)
         value = parse_value(spec, raw)
-        if value is None:
+        if value is None or is_unset(spec, value):
             return self.unset(node_id, name)
         problem = self.vocab.problem(spec, value)
         if problem:
@@ -443,6 +463,7 @@ def node_detail(vocab, document, node_id):
         "hide": [d for d in ("desktop",) + DEVICES if "_hide_" + d in controls],
         "texts": {slot: settings.get("text_" + slot) or default
                   for slot, default in (block.get("texts") or {}).items()},
+        "options": [name for name, spec in controls.items() if spec.get("group") == "option"],
     }
 
 
@@ -461,6 +482,12 @@ def control_rows(vocab, document, node_id, match=None):
                                         "|".join(u or '""' for u in spec["units"]))
         elif spec["type"] == "number":
             allowed = "number %s..%s" % (spec["min"], spec["max"])
+        elif spec["type"] == "amount":
+            allowed = "number 0..%s" % vocab.limits["amount_max"]
+        elif spec["type"] == "list":
+            allowed = "names, comma-separated or a JSON list"
+        elif spec["type"] == "hide":
+            allowed = "yes|no"
         elif spec["type"] == "text":
             allowed = 'text (page shows "%s")' % spec.get("default", "")
         rows.append({"name": name, "allowed": allowed, "value": settings.get(name)})
@@ -590,6 +617,11 @@ def main(argv=None):
                 flags.append("inside the filters")
             if block["lays_out"]:
                 flags.append("lays out")
+            hides = [c["device"] for c in block["controls"].values() if c.get("group") == "hide"]
+            if hides:
+                flags.append("hides on " + "/".join(hides))
+            if any(c.get("group") == "option" for c in block["controls"].values()):
+                flags.append("has starting options")
             rows.append({"type": block_type, "label": block["label"], "flags": flags,
                          "texts": list(block["texts"])})
         _emit(rows, args.json, lambda r: [print("%-34s %-28s %s" % (
@@ -631,6 +663,8 @@ def main(argv=None):
                         print("can be hidden on: %s" % ", ".join(d["hide"]))
                     for slot, value in d["texts"].items():
                         print('text %s: "%s"' % (slot, value))
+                    if d["options"]:
+                        print("what it starts with: %s" % ", ".join(d["options"]))
                 _emit(detail, args.json, text)
             else:
                 lines = tree_lines(vocab, document)

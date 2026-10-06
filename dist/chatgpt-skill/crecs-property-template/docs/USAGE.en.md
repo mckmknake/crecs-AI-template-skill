@@ -299,6 +299,24 @@ python3 $B validate --file $F
 python3 $P apply --document $F --session-file ./session.json    # the preview reloads
 ```
 
+What the page starts with, and which filters show:
+
+> "Open the page on properties for lease, offer only Office, Retail and Industrial in the
+> type list, and hide the rate filter on phones."
+
+```bash
+python3 $P options --session-file ./session.json    # the site's own type and broker names
+python3 $B set --file $F --node 5e2a0007 --key start_for_lease --value yes
+python3 $B set --file $F --node 5e2a0008 --key offer --value "Office, Retail, Industrial"
+python3 $B hide --file $F --node 5e2a000a --device mobile
+python3 $P apply --document $F --session-file ./session.json
+```
+
+A starting value is a default, not a lock: visitors see For Lease ticked and can untick
+it, or press Clear, which clears every filter. While nothing is ticked, a cut-down list
+searches only the names it offers. Take the names from `options`; one with a comma goes
+as JSON: `--value '["Bryan King, CCIM"]'`.
+
 The ids come from `show`. `controls --node <id>` lists every setting a block takes and
 what it accepts; `references/search/SEARCH-LAYOUT.md` describes every block. A change the
 plugin would refuse is not written, and the command says why — the sort, for one, cannot

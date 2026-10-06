@@ -313,6 +313,24 @@ python3 $B validate --file $F
 python3 $P apply --document $F --session-file ./sessao.json    # a prévia recarrega
 ```
 
+Com o que a página começa, e quais filtros aparecem:
+
+> "Abra a página já em imóveis para locação, ofereça só Office, Retail e Industrial na
+> lista de tipos e esconda o filtro de preço no celular."
+
+```bash
+python3 $P options --session-file ./sessao.json    # os nomes de tipos e corretores do próprio site
+python3 $B set --file $F --node 5e2a0007 --key start_for_lease --value yes
+python3 $B set --file $F --node 5e2a0008 --key offer --value "Office, Retail, Industrial"
+python3 $B hide --file $F --node 5e2a000a --device mobile
+python3 $P apply --document $F --session-file ./sessao.json
+```
+
+Um valor inicial é um padrão, não uma trava: o visitante vê For Lease marcado e pode
+desmarcar, ou apertar Limpar, que limpa todos os filtros. Enquanto nada estiver
+marcado, uma lista reduzida busca só os nomes que oferece. Use os nomes do `options`;
+um nome com vírgula vai em JSON: `--value '["Bryan King, CCIM"]'`.
+
 Os ids vêm do `show`. `controls --node <id>` lista cada configuração de um bloco e o
 que ela aceita; `references/search/SEARCH-LAYOUT.md` explica todos os blocos. Uma
 mudança que o plugin recusaria não é gravada, e o comando diz o motivo — a ordenação,

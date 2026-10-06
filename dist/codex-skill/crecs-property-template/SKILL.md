@@ -747,14 +747,62 @@ python3 scripts/crecs_search.py show --file ./search.json
 - **The map's height**, per device.
 - **Texts**: the filter buttons' labels, the placeholders, the sort options, Clear,
   Deal Room.
+- **Hiding**, per device: one filter, the Clear button, the map on tablets and phones,
+  the view buttons on computers. Also one choice of a filter (For Sale or For Lease;
+  square feet or acres) and one view button, which can be reordered too.
+- **What the page starts with**: a filter's starting value — a keyword, For Sale or For
+  Lease, property types or brokers checked, the size unit, a size or rate/price range;
+  which property types and brokers the lists offer, and in what order; whether the
+  results start as a list or a grid, and sorted how; whether the map starts shown on
+  computers.
 
-**Not yet**, so do not promise them and do not imitate them: hiding a single filter or a
-view button, which options a filter offers, its default value, the price and size
-ranges; the map's zoom, centre, controls and colours, its pins and clusters, the popup
-on the map; what a result card shows and how many columns the grid has; mouse-over
+**Not yet**, so do not promise them and do not imitate them: the map's zoom, centre,
+controls and colours, its pins and clusters, the popup on the map; what a result card
+shows and how many columns the grid has; how many results a page shows; mouse-over
 effects between the cards and the pins. Say these are planned, and note the request.
 Never fake one with something else — a filter "hidden" by painting it white still sits
 in the page, and the visitor still tabs into it.
+
+**By design, never**: a filter the visitor cannot remove. What they can have is a
+starting value, below.
+
+### Starting values and shorter lists
+
+A starting value is a **default, not a lock**. The first search the visitor sees already
+applies it and the filter shows it checked or filled in, but the visitor can change or
+remove it — in the filter itself, or all at once with Clear, which clears every filter,
+starting values included. Whenever they ask for one, and again when you confirm it, tell
+them so in plain words, for instance:
+
+> Done: the page now opens showing only properties for lease. That filter starts
+> switched on, but it is not locked — a visitor can untick it, or press Clear, to see
+> everything. You can take the default away again whenever you like.
+
+If what they wanted was a page that can never show anything else, say that the search
+page cannot do that, and offer the default instead. Two more things to say when they
+apply:
+
+- **An address that already names a choice wins.** The site's ready-made search
+  addresses — a type, a broker or a category in the URL, such as
+  `/properties/office--properties` — start with that choice instead of the default for
+  the same filter. The keyword, size and rate/price defaults apply everywhere.
+- **A hidden filter keeps its starting value.** Hiding a filter that starts with a value
+  means visitors on that device still get it, and only Clear removes it; the plugin
+  refuses the layout (`E-SL-STUCK`) if Clear is hidden there too. Say so before hiding
+  one.
+
+**Shorter lists** (`offer` on the property type and broker filters) take the site's own
+names. Ask the preview for them first — never guess one:
+
+```
+python3 scripts/crecs_preview.py options --session-file <file>
+```
+
+The list shows only what you offer, in your order, and while nothing is checked the
+search covers only those names, not every type. Tell them that, and that a name the
+site has no listing for today simply does not appear. A type also matches longer names
+that contain it: offering *Office* finds *Medical Office* listings too. Every name that
+starts checked must be one the list offers.
 
 ### The loop
 
@@ -765,11 +813,13 @@ crecs_search.py controls --node <id> --match color     the settings it takes
 crecs_search.py set --node <id> --key <setting> --value <value> [--device tablet|mobile] [--hover]
 crecs_search.py unset | text | move | add-box | remove-box | hide | unhide | validate
 crecs_preview.py apply --document ./search.json --session-file <file>
+crecs_preview.py options --session-file <file>          the site's property types and brokers
 ```
 
 Every command takes `--file ./search.json` (or set `$CRECS_SEARCH_FILE`) and `--help`.
 Values are JSON or the usual shorthand: `#0a3d62`, `24px`, `8px 16px`,
-`0 2px 8px 0 rgba(0,0,0,0.2)`, `yes` / `no`.
+`0 2px 8px 0 rgba(0,0,0,0.2)`, `yes` / `no`, `5,000` for an amount, `Office, Retail`
+for a list of names (a name with a comma in it goes as JSON: `'["Doe, Jane"]'`).
 
 Each change is checked against the plugin's own rules first, and one the plugin would
 refuse is not written — the command says why. After each change, `apply`: the preview

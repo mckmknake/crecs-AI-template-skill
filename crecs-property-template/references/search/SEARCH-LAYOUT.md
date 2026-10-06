@@ -30,7 +30,8 @@ The preview and Publish refuse a document with any of these, and the live page f
 | `E-SL-WITHIN` | a filter outside the filters block: Clear resets and walks the filters form |
 | `E-SL-NOT-WITHIN` | anything but a filter or a box inside the filters block: Clear would reset it |
 | `E-SL-SETTING` | a setting the block does not have |
-| `E-SL-VALUE` | a value outside what its control accepts |
+| `E-SL-VALUE` | a value outside what its control accepts, or settings of one block that do not fit together (see *What the page starts with*) |
+| `E-SL-STUCK` | a filter starts with a value and cannot be seen on a device (it, its choice or a box around it is hidden there) where Clear cannot be seen either: visitors there could never remove it |
 | `E-SL-LIMIT` | more than 150 blocks, or nested more than 12 deep |
 
 ## Control names
@@ -39,8 +40,9 @@ The preview and Publish refuse a document with any of these, and the live page f
 - `_margin`, `_padding`, `_width`, `_grow`, `_order`, each with `_tablet` and `_mobile`: the block's own box, on every block but the page. `_grow: "yes"` takes the room left; `_order` reorders it among its siblings.
 - `direction`, `wrap`, `gap`, `justify`, `align`, each with `_tablet` and `_mobile`: how a container lays out its blocks (a flex row or column). Only on containers marked *lays out*.
 - `map_height`, `map_height_tablet`, `map_height_mobile`: the map's height.
-- `_hide_desktop`, `_hide_tablet`, `_hide_mobile`: hide a block on a device. Only blocks that are not required have them: today, the box.
+- `_hide_desktop`, `_hide_tablet`, `_hide_mobile`: `"yes"` hides a block on that device, and on that device only. A hidden filter, map or button only stops showing: its markup stays, because the page's scripts read it, and a hidden filter still searches with whatever value it starts with. The blocks that have them: Map (`crecs_search_map`, tablet and mobile only), Keyword search (`crecs_search_filter_keyword`), For Sale / For Lease (`crecs_search_filter_category`), Property type filter (`crecs_search_filter_property_type`), Size filter (`crecs_search_filter_size`), Rate/price filter (`crecs_search_filter_rate`), Broker filter (`crecs_search_filter_broker`), Clear button (`crecs_search_filter_clear`), View buttons (`crecs_search_view_options`, desktop only), Box (`crecs_search_box`).
 - `text_{slot}`: an editable text, printed as plain text. Empty means the page's own text.
+- `start_*` and `offer`: what the page starts with rather than how it looks (*What the page starts with*, below). They print no CSS.
 
 A device inherits from the larger one unless it sets its own value: desktop first, then tablet (up to 1023px), then mobile (up to 599px). An empty value means "leave the page as it is".
 
@@ -64,6 +66,8 @@ A device inherits from the larger one unless it sets its own value: desktop firs
 | `text_transform` | text | one of `none`, `uppercase`, `lowercase`, `capitalize` | desktop value applies to all |
 | `font_style` | text | one of `normal`, `italic` | desktop value applies to all |
 | `text_align` | text | one of `left`, `center`, `right` | all three |
+| `order` | item | a whole number from -20 to 20 | desktop value applies to all |
+| `hide` | item, toggle | `"yes"`, or empty | desktop value applies to all |
 
 ### Box, layout and map
 
@@ -82,6 +86,17 @@ A device inherits from the larger one unless it sets its own value: desktop firs
 | `map_height` | `{"unit": u, "size": n}`, u one of `px`, `vh`, n from 100 to 2000 (at most 100 in % or vh) |
 
 Fonts: `Roboto`, `Arial`, `Helvetica`, `Verdana`, `Calibri`, `Comic Sans`, `Times New Roman`, `Times`, `Cambria`, `Courier New`, `Courier`. Nothing else is loaded, so no other font can be used.
+
+## What the page starts with
+
+These settings change what a visitor first sees, not how it looks. Each block lists its own under *Options*.
+
+- **Starting values.** The keyword (`start_text`), For Sale and For Lease (`start_for_sale`, `start_for_lease`), the property types and brokers checked (`start_checked`), the size unit (`start_unit`; square feet unless set) and the size and rate ranges (`start_min`, `start_max`). The first search already applies them, and they show in their filters: they are defaults, not fixed restrictions. A visitor can change or remove each one, or all at once with Clear, which clears every filter, starting values included (the size unit stays as chosen). Tell the person so whenever they ask for one. An address that already names a category, a property type or a broker (an SEO page such as `/properties/office--properties`) wins over the matching starting value; the keyword, size and rate ones apply on every address.
+- **Shorter lists.** `offer` on the property type and broker filters: the names the list shows, in that order. They are the site's own names, which the preview lists, matched ignoring case and surrounding spaces; a name the site does not list today shows nothing. With nothing checked, the search then covers only the offered names instead of all of them. Unset, the list shows every name the site lists, in the site's order. The API matches a type as a phrase, so offering `Office` also finds `Medical Office` listings.
+- **The starting view.** `start_view` on the results (list or grid), `start_sort` on the sort, `start_map` on the map (computers only, where the map's own button shows and hides it). Unset, the view and the map follow the plugin's settings screen.
+- **Hiding.** A filter, Clear, the map (on tablets and phones, which have no map button) and the view buttons (on computers, the only devices that show them) hide per device with `_hide_*`. One choice of a filter hides with `for_sale_option_hide`, `for_lease_option_hide`, `square_feet_option_hide` or `acres_option_hide`, on every device; one view button with `map_button_hide`, `list_button_hide` or `grid_button_hide`, and `map_button_order`, `list_button_order`, `grid_button_order` reorder them.
+
+The plugin refuses, as `E-SL-VALUE`, a `start_checked` name that `offer` does not list, a `start_min` larger than `start_max`, both choices of a filter hidden (hide the block instead) and a size that starts in a hidden unit; and, as `E-SL-STUCK`, a starting value that cannot be seen on a device where Clear cannot be seen either (hidden itself, by its hidden choice or by a hidden box around it), because visitors there could never remove it.
 
 ## Blocks
 
@@ -107,11 +122,15 @@ Widget, optional.
 
 ### Map — `crecs_search_map`
 
-Widget, required.
+Widget, required, can be hidden.
 
 Parts you can style:
 
 - `frame` (box): `frame_background_color`, `frame_border_style`, `frame_border_width`, `frame_border_color`, `frame_border_radius`, `frame_box_shadow`, `frame_padding`
+
+Options:
+
+- `start_map`: how the map starts on computers; unset, the settings screen decides. Value: one of `shown`, `hidden`.
 
 ### Filters — `crecs_search_filters`
 
@@ -123,7 +142,7 @@ Parts you can style:
 
 ### Keyword search — `crecs_search_filter_keyword`
 
-Widget, required, must stay inside the filters.
+Widget, required, must stay inside the filters, can be hidden.
 
 Parts you can style:
 
@@ -134,23 +153,34 @@ Texts:
 
 - `text_placeholder`: "Address, Location, Type, or Use"
 
+Options:
+
+- `start_text`: the keyword the search starts with. Value: one line of at most 120 characters, printed as plain text.
+
 ### For Sale / For Lease — `crecs_search_filter_category`
 
-Widget, required, must stay inside the filters.
+Widget, required, must stay inside the filters, can be hidden.
 
 Parts you can style:
 
 - `label` (text, hover): `label_color`, `label_font_family`, `label_font_size`, `label_font_weight`, `label_line_height`, `label_letter_spacing`, `label_text_transform`, `label_font_style`, `label_text_align`
 - `checkbox` (icon): `checkbox_color`, `checkbox_font_size`
+- `for_sale_option` (toggle): `for_sale_option_hide`
+- `for_lease_option` (toggle): `for_lease_option_hide`
 
 Texts:
 
 - `text_for_sale`: "For Sale"
 - `text_for_lease`: "For Lease"
 
+Options:
+
+- `start_for_sale`: For Sale starts checked. Value: `"yes"`, or empty.
+- `start_for_lease`: For Lease starts checked. Value: `"yes"`, or empty.
+
 ### Property type filter — `crecs_search_filter_property_type`
 
-Widget, required, must stay inside the filters.
+Widget, required, must stay inside the filters, can be hidden.
 
 Parts you can style:
 
@@ -161,15 +191,22 @@ Texts:
 
 - `text_button`: "Property Type"
 
+Options:
+
+- `offer`: the names the list shows, in this order; unset, every name the site lists. Value: a list of at most 50 names, each one line of at most 120 characters, no name twice (case and surrounding spaces aside).
+- `start_checked`: the names that start checked; each one in `offer`, when `offer` is set. Value: a list of at most 50 names, each one line of at most 120 characters, no name twice (case and surrounding spaces aside).
+
 ### Size filter — `crecs_search_filter_size`
 
-Widget, required, must stay inside the filters.
+Widget, required, must stay inside the filters, can be hidden.
 
 Parts you can style:
 
 - `button` (box, text, hover): `button_background_color`, `button_border_style`, `button_border_width`, `button_border_color`, `button_border_radius`, `button_box_shadow`, `button_padding`, `button_color`, `button_font_family`, `button_font_size`, `button_font_weight`, `button_line_height`, `button_letter_spacing`, `button_text_transform`, `button_font_style`, `button_text_align`
 - `menu` (box, text): `menu_background_color`, `menu_border_style`, `menu_border_width`, `menu_border_color`, `menu_border_radius`, `menu_box_shadow`, `menu_padding`, `menu_color`, `menu_font_family`, `menu_font_size`, `menu_font_weight`, `menu_line_height`, `menu_letter_spacing`, `menu_text_transform`, `menu_font_style`, `menu_text_align`
 - `input` (box, text): `input_background_color`, `input_border_style`, `input_border_width`, `input_border_color`, `input_border_radius`, `input_box_shadow`, `input_padding`, `input_color`, `input_font_family`, `input_font_size`, `input_font_weight`, `input_line_height`, `input_letter_spacing`, `input_text_transform`, `input_font_style`, `input_text_align`
+- `square_feet_option` (toggle): `square_feet_option_hide`
+- `acres_option` (toggle): `acres_option_hide`
 
 Texts:
 
@@ -179,9 +216,15 @@ Texts:
 - `text_square_feet`: "Square Feet"
 - `text_acres`: "Acres"
 
+Options:
+
+- `start_unit`: the unit the size starts in; unset, square feet. Value: one of `square_feet`, `acres`.
+- `start_min`: the minimum the search starts with. Value: a number from 0 to 999999999, written as a number, not as text.
+- `start_max`: the maximum the search starts with. Value: a number from 0 to 999999999, written as a number, not as text.
+
 ### Rate/price filter — `crecs_search_filter_rate`
 
-Widget, required, must stay inside the filters.
+Widget, required, must stay inside the filters, can be hidden.
 
 Parts you can style:
 
@@ -195,9 +238,14 @@ Texts:
 - `text_min`: "Min"
 - `text_max`: "Max"
 
+Options:
+
+- `start_min`: the minimum the search starts with. Value: a number from 0 to 999999999, written as a number, not as text.
+- `start_max`: the maximum the search starts with. Value: a number from 0 to 999999999, written as a number, not as text.
+
 ### Broker filter — `crecs_search_filter_broker`
 
-Widget, required, must stay inside the filters.
+Widget, required, must stay inside the filters, can be hidden.
 
 Parts you can style:
 
@@ -208,9 +256,14 @@ Texts:
 
 - `text_button`: "Broker"
 
+Options:
+
+- `offer`: the names the list shows, in this order; unset, every name the site lists. Value: a list of at most 50 names, each one line of at most 120 characters, no name twice (case and surrounding spaces aside).
+- `start_checked`: the names that start checked; each one in `offer`, when `offer` is set. Value: a list of at most 50 names, each one line of at most 120 characters, no name twice (case and surrounding spaces aside).
+
 ### Clear button — `crecs_search_filter_clear`
 
-Widget, required, must stay inside the filters.
+Widget, required, must stay inside the filters, can be hidden.
 
 Parts you can style:
 
@@ -263,14 +316,21 @@ Texts:
 - `text_option_created_at_asc`: "Date Create (Old to New)"
 - `text_option_created_at_desc`: "Date Create (New to Old)"
 
+Options:
+
+- `start_sort`: the order the results start in. Value: one of `updated_at_asc`, `updated_at_desc`, `street_address_asc`, `street_address_desc`, `city_asc`, `city_desc`, `property_type_asc`, `property_type_desc`, `price_rate_desc`, `price_rate_asc`, `size_desc`, `size_asc`, `created_at_asc`, `created_at_desc`.
+
 ### View buttons — `crecs_search_view_options`
 
-Widget, required.
+Widget, required, can be hidden.
 
 Parts you can style:
 
 - `icon` (icon, hover): `icon_color`, `icon_font_size`
 - `deal_room` (box, text, hover): `deal_room_background_color`, `deal_room_border_style`, `deal_room_border_width`, `deal_room_border_color`, `deal_room_border_radius`, `deal_room_box_shadow`, `deal_room_padding`, `deal_room_color`, `deal_room_font_family`, `deal_room_font_size`, `deal_room_font_weight`, `deal_room_line_height`, `deal_room_letter_spacing`, `deal_room_text_transform`, `deal_room_font_style`, `deal_room_text_align`
+- `map_button` (icon, item, hover): `map_button_color`, `map_button_font_size`, `map_button_order`, `map_button_hide`
+- `list_button` (icon, item, hover): `list_button_color`, `list_button_font_size`, `list_button_order`, `list_button_hide`
+- `grid_button` (icon, item, hover): `grid_button_color`, `grid_button_font_size`, `grid_button_order`, `grid_button_hide`
 
 Texts:
 
@@ -289,6 +349,10 @@ Parts you can style:
 - `rate` (text): `rate_color`, `rate_font_family`, `rate_font_size`, `rate_font_weight`, `rate_line_height`, `rate_letter_spacing`, `rate_text_transform`, `rate_font_style`, `rate_text_align`
 - `button` (box, text, hover): `button_background_color`, `button_border_style`, `button_border_width`, `button_border_color`, `button_border_radius`, `button_box_shadow`, `button_padding`, `button_color`, `button_font_family`, `button_font_size`, `button_font_weight`, `button_line_height`, `button_letter_spacing`, `button_text_transform`, `button_font_style`, `button_text_align`
 - `badge` (box, text): `badge_background_color`, `badge_border_style`, `badge_border_width`, `badge_border_color`, `badge_border_radius`, `badge_box_shadow`, `badge_padding`, `badge_color`, `badge_font_family`, `badge_font_size`, `badge_font_weight`, `badge_line_height`, `badge_letter_spacing`, `badge_text_transform`, `badge_font_style`, `badge_text_align`
+
+Options:
+
+- `start_view`: how the results start; unset, the settings screen decides. Value: one of `list`, `grid`.
 
 ### Discover-more links — `crecs_search_seo_links`
 
