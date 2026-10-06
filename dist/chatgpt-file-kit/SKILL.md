@@ -54,10 +54,22 @@ on their own site, and tell you when they are in. If they paste a password into 
 anyway, do not use it: ask them to sign in on the page themselves and suggest they change
 that password afterwards, since it is now in a chat. If they cannot find the email or the
 password fails, point them to the **Lost your password?** link on the login page, or to
-the contact in their welcome email. If the browser is hidden, say so: in the Claude
-desktop app it comes back with Cmd+Shift+B (Mac) or Ctrl+Shift+B (Windows). If this
-surface has no browser at all, say so and ask them to sign in in their own browser and
-come back — do not stall, and do not pretend to have looked at anything.
+the contact in their welcome email.
+
+**If the browser is hidden, will not open, or you cannot reach it** (your browser tools
+are missing, return an error, or get no answer), stop and tell them how to bring it
+back. Do not keep retrying silently, and do not guess at what is on the page. Say it
+like this:
+
+> I can't reach the browser right now. In the Claude desktop app, press **Cmd+Shift+B**
+> on a Mac (**Ctrl+Shift+B** on Windows) to open the browser panel, or close whatever
+> is open in the side panel and click the globe icon. Please keep the Claude app open,
+> then send me any message and I'll try again.
+
+Try once more after they reply. If it still cannot be reached, say so plainly and carry
+on with what works without it (see *When the browser won't connect*). If this surface
+has no browser at all, say so and ask them to sign in in their own browser and come
+back — do not stall, and do not pretend to have looked at anything.
 
 If what they asked for is the search page — the list of properties with the map and the
 filters — say so in your welcome instead of the property-page line, and take the search
@@ -156,20 +168,50 @@ Close the tour with one sentence each, not a lecture:
 **No preview?** Give the same tour as text, same one line per block, and say they will
 see it on the page after they import.
 
-### 5. The look they want
+### 5. The look they want: five ready-made styles
 
-Ask which direction fits them, as a pick-one:
+There are five complete, ready-made property pages in `assets/styles/`. Each one is a
+finished, tested page, not a sketch. Present them as **options**: any one can be used
+as it is, and afterwards almost anything about it can be adjusted. Say it like this:
 
-| Style | Feel | Starting fonts | Starting colors |
-| --- | --- | --- | --- |
-| Modern | Airy, big photos, clean type | Montserrat headings, Inter body | White, charcoal, one bright accent |
-| Classic | Established, trustworthy | Playfair Display headings, Source Sans 3 body | Navy, warm gold, cream |
-| Minimal | Photos do the talking | Inter throughout | Black, white, one quiet accent |
-| Corporate | Polished, national-firm | Roboto headings and body | Blues and grays |
-| Bold | High contrast, stands out | Oswald headings, Inter body | Deep dark plus one strong color |
+> There are five ready-made looks for your property page: Bold, Modern, Classic,
+> Corporate and Minimal. Each one is a complete page you could use as it is. Whichever
+> you pick is a starting point: colors, fonts, spacing, buttons and which sections show
+> can all be adjusted afterwards. I'll show you each one with one of your own properties.
 
-"Or describe your own" is always an option. Industrial and flex brokers often like
-Bold or Modern with a steel-gray base — suggest that if their listings lean that way.
+**Show them, don't just describe them.** Load each style into the preview in turn, on
+the example property from step 4, and give **one or two lines** on what makes it
+different while they look:
+
+```
+python3 scripts/crecs_template.py init --from assets/styles/property-template-style-<style>.json \
+    --workdir ./crecs-look-<style> --profile ./<client>-profile.json --force
+python3 scripts/crecs_template.py export --workdir ./crecs-look-<style> --out ./look-<style>.json --allow-draft
+python3 scripts/crecs_preview.py apply --document ./look-<style>.json --session-file <file>
+```
+
+`<style>` is `bold`, `modern`, `classic`, `corporate` or `minimal`. These previews are
+for looking only; they are never delivered for import. If they only want to see one or
+two, show those.
+
+| Style | Layout | Fonts | Colors | What stands out |
+| --- | --- | --- | --- | --- |
+| Bold | Dark title band across the top: name and address on the left, type, status and rate on the right. Below it, photos and details in a wide main column with a sidebar on the right (about 70/30). | Oswald headings, Inter body | Deep navy band, bright blue accent, light slate page | High contrast; rounded cards; documents, buttons, downloads, traffic and demographics sit in the sidebar |
+| Modern | Large photos at the very top, as wide as the page's content area, then the name, address and rate, then everything in one centered column | Montserrat headings, Inter body | White and charcoal with one teal accent | Airy spacing, softly rounded cards, a tight thumbnail strip |
+| Classic | Charcoal title band, then photos and details with a sidebar (about 70/30) | Playfair Display headings, Source Sans 3 body | Charcoal, deep burgundy accent, warm cream page | Serif headings, thin dividers, small corner rounding |
+| Corporate | Clean white title area, then photos and details with a sidebar (about 70/30) | Roboto throughout | Navy text, corporate blue accent, light gray page | Crisp and restrained; national-firm feel |
+| Minimal | Full-width photo with the property name, type, status and rate laid **over** the bottom of the photo with a soft shadow, at every screen size including phones. The text band is exactly as wide as the white content box below the photo. The photos, map, street view and video tabs sit under the photo; address, headline and everything else follow in one column | Inter throughout | Black, white and grays; one quiet taupe label color | No boxes or shadows on sections, just a title over a thin rule; square corners; outline buttons |
+
+**No preview?** Describe them from the table, one style per line, and say they will see
+the real page after they import.
+
+After they have looked, ask which one they want to start from. "Describe your own" is
+always an option: start from the closest style and adjust it. Industrial and flex
+brokers often like Bold or Modern with a steel-gray base — suggest that if their
+listings lean that way. If they like one style's layout but another's feel, that is
+usually an adjustment, not a new style (see *The ready-made styles and what can be
+adjusted*). The one exception is the title over the photo: for that, start from Minimal
+and give it the other style's colors and fonts.
 
 ### 6. Websites they like
 
@@ -198,7 +240,12 @@ Check contrast with a quick calculation before proposing it: body text and butto
 must reach WCAG AA (4.5:1). Adjust shades rather than presenting a failing pair.
 
 **No colors in mind?** Suggest a palette from, in order: their logo, the sites they
-liked, the style they picked. Show it and let them react.
+liked, the style they picked. Show it and let them react. Keeping the style's own
+colors is a perfectly good answer too; say so.
+
+Their palette replaces the style's colors role for role: the style's dark band color
+becomes their dark, its accent becomes their primary, and so on. Keep the pattern of
+where each color is used, so the style still looks like itself.
 
 Apply the palette through `set` on the controls each widget's reference lists
 (`references/widgets/<widget>.md`). Literal colors are fine (the validator reports them
@@ -229,16 +276,28 @@ website.
 style's heading font and their primary color. Suggest a designer for a proper logo
 later. Never draw or imitate another company's logo.
 
-### 9. Fresh or existing
+### 9. Where to start from
 
-Ask: **"Would you like to start fresh from the full starter page and remove what you
-don't need, or open the property page your site has now and edit that?"**
+Offer the choices in this order, and suggest the first:
 
-- **Existing** → they export it: **Templates → Saved Templates**, find the property page
-  template, **Export** on its row. They attach the downloaded file; `init --from` it.
-- **Fresh** → `init --from assets/property-template-all-widgets.json`.
+> Shall we start from the Minimal page you picked and adjust it? Or, if you'd rather,
+> we can start from a plain page with every block on it and build the look from
+> scratch, or open the property page your site has now and edit that.
 
-A brand-new site usually has no property page yet, so fresh is the likely answer.
+(Use the name of the style they picked.)
+
+- **The style they picked** (the usual answer) →
+  `init --from assets/styles/property-template-style-<style>.json`.
+- **Everything, unstyled** → `init --from assets/property-template-all-widgets.json`,
+  then remove what they don't need.
+- **Their existing page** → they export it: **Templates → Saved Templates**, find the
+  property page template, **Export** on its row. They attach the downloaded file;
+  `init --from` it.
+
+A brand-new site usually has no property page yet, so starting from a style is the
+likely answer. Every style carries the same blocks as the starter page except the
+standalone photo gallery and standalone map (the photos and map are already in the
+media box). Either can be added back with `add-widget` if they want it.
 
 ### 10. Fill in the last three details, in plain words
 
@@ -255,6 +314,102 @@ words and resolve the technical values yourself:
 Then apply the style, fonts, palette and logo, show the result in the preview, and move
 into **The loop** below for their changes — describing layout top to bottom, one change
 at a time. When they are happy, export and deliver.
+
+## The ready-made styles and what can be adjusted
+
+The five styles are starting points, and the person should come away knowing that. When
+they ask "can I change…?", the answer is usually yes. Offer the change as a choice with a
+suggested default, make it, show it in the preview, and ask how it looks. One change at
+a time.
+
+**What stays and what moves.** A style's layout is its backbone: sidebar or single
+column, and whether the title sits in a band, above the photos or over them. Within that
+layout nearly everything can be adjusted. If they want a different backbone, switching
+to the style that has it and carrying their colors and fonts across is quicker and
+cleaner than rebuilding one layout into another; offer that.
+
+| They might ask for | What changes | How |
+| --- | --- | --- |
+| Their own colors | Band, accent, text, page and card colors | Step 7; `set` on each widget's color controls |
+| Different fonts | Heading and body fonts | The widgets' `*_typography_font_family` controls; add the font to the profile's `fonts` so the site loads it |
+| Bigger or smaller text | Name, address, rate or section-title sizes | The typography size controls; set phone and tablet sizes too where the reference marks them responsive |
+| Rounder or squarer corners | Cards, photos, buttons | The border-radius controls; photo corners live in the media box's custom styling |
+| Different buttons | Filled or outline, square or rounded, which buttons show | Button color, border and radius controls; `remove --reason` for a button they don't want |
+| Plainer or boxier sections | Cards with borders and shadows, or just a title over a thin rule (the Minimal look) | Card background, border and shadow controls on each block |
+| Blocks in a different order, or fewer blocks | Where each block sits, whether it shows | `move`, `remove --reason` (run `bind --list` first) |
+| Taller or shorter photos | Photo height on computers, tablets and phones | The media box's custom styling (for example 600 / 440 / 280 pixels in Minimal, 560 / 420 / 260 in Modern). In Minimal, change the title band's positions to match (see below) |
+| Photo tabs above or below the photos | Where Photos / Map / Street View / Video sit | The media box's custom styling; Minimal puts them below with an ordering rule, the others use the default (above) |
+| **Title over the photo** (Minimal) | Stronger or softer shadow; text size; which lines sit on the photo; turning it off | See below |
+| The title-over-photo look with another style's feel | Minimal's layout with, say, Classic's fonts and colors | Start from Minimal and apply the other style's fonts and palette. Do not rebuild the overlay into another style's layout: moving the title section into the photo section is not something the tools handle cleanly yet |
+| A different phone or tablet layout | Stacking, spacing, sizes per device | Only controls the reference marks responsive (see *Responsiveness*) |
+
+**Minimal's title over the photo.** How it is built, so an adjustment keeps it working:
+
+- The invisible loader and sharing-tags blocks sit in their own section at the very top
+  ("Property Data"). Keep them there: in the Elementor editor they show as a gray strip
+  with icons, and if they sat above the photo in the same section they would push the
+  photo down under the title.
+- The next section, "Hero Photo", holds the media box and, right after it, a section
+  titled "Property Name" with two columns: property type and name on the left,
+  sale/lease status and rate on the right. Both columns align to the bottom.
+- The photo runs the full width of the browser through the media box's own custom
+  styling. The "Hero Photo" section itself is **not** stretched, so the title band is
+  exactly as wide as the page's content area: its edges line up with the white
+  "Property Information" box below, and its text is inset by the same amount as that
+  box's content (24 pixels, 16 on phones).
+- The title band's custom styling pins it to the bottom edge of the photo at every
+  width (`top` 600 / 440 / 280 pixels for computers / tablets / phones, matching the
+  photo heights) and lifts it by its own height (`translateY(-100%)`), so a long name
+  grows upward over the photo and never runs below it. It also turns the text white
+  and adds the shadow.
+
+**The text must always stay on the photo.** It is never allowed to spill below the
+photo or drop under it on phones. To adjust it, `inspect --element` the "Property Name"
+section, change only the part of its `custom_css` the request is about, keep the rest,
+and check the preview at computer, tablet and phone widths before calling it done:
+
+- *Stronger or softer shadow* → the `text-shadow` values (raise or lower the blur and the
+  last number in each `rgba`).
+- *Bigger or smaller text* → the headings' and rate's typography sizes, per device. On
+  phones keep them small enough that the band covers well under half the photo.
+- *More or fewer lines on the photo* → `move` headings into or out of that section's two
+  columns (for example the address from below the tabs onto the photo).
+- *If the photo height changes* on any device, change that device's `top` value to
+  match, or the title will float above the bottom of the photo.
+- *No title over the photo at all* → only when they ask for exactly that: remove the
+  positioning and white-text rules, and the title then sits under the photo in dark
+  text on every device. Do not remove it on one device only.
+- Do not re-stretch the "Hero Photo" section, and do not give the title band a fixed
+  content width: either one breaks the alignment with the white box.
+
+The custom styling in the styles is part of the shipped design, so changing it is an
+ordinary edit. Do not add new custom styling to other blocks unless the person asks for
+something the regular controls cannot do and agrees to it (see *What you can and cannot
+change*).
+
+## When the browser won't connect
+
+The preview, the sign-in page and the tour all need the browser. If your browser tools
+are missing, return errors, get no answer, or the person says they cannot see the
+browser, tell them how to bring it back in plain words, and wait for their reply:
+
+> I can't reach the browser right now. In the Claude desktop app, press **Cmd+Shift+B**
+> on a Mac (**Ctrl+Shift+B** on Windows) to open the browser panel, or close whatever
+> is open in the side panel and click the globe icon. Please keep the Claude app open,
+> then send me any message and I'll try again.
+
+Then:
+
+- Try once more after they reply. If it works, say what you see and carry on where you
+  stopped.
+- If it still fails, say so plainly; it is a connection problem, not something they did
+  wrong. Keep working on what does not need the browser (choosing a style from the
+  table, the palette, the fonts, the edits themselves) and say that nothing has been
+  previewed yet.
+- Never say you have seen or checked something you could not open, and never switch to
+  a different browser, such as the one they use every day, without asking first.
+- If this surface has no browser at all, say so once, and have them sign in and look at
+  the preview in their own browser while you make the edits.
 
 ## Before anything else
 
@@ -294,18 +449,28 @@ nothing. Retarget them instead, with `popup`.
 
 ## Which template to start from
 
-**If the site already has a property page, start from theirs.** Ask them to send it:
+**If the site already has a property page, start from theirs** — unless they have looked
+at the ready-made styles and chosen to switch to one. Ask them to send it:
 in WordPress, **Templates → Saved Templates**, find the property page template, and use
 **Export** on its row. That downloads a JSON file. Pass that file to `init --from`.
 
 Do not make them describe the page to you, and do not rebuild it from the shipped
-template — they would lose every choice already made on their site.
+template — they would lose every choice already made on their site. If they do choose
+a ready-made style over their current page, say once that the new page replaces the
+old look rather than merging with it.
 
-`assets/property-template-all-widgets.json` is for a site that has **no** property page
-yet. It carries every relevant widget so nothing is missing, which also means it carries
-blocks most sites do not want; expect to remove some.
+`assets/styles/property-template-style-<style>.json` are the five ready-made styles
+(bold, modern, classic, corporate, minimal). They are the usual starting point for a
+site with **no** property page yet. Each is site-neutral: the loader's preview slug is
+empty (the profile fills it) and the contact buttons carry the reference site's popup
+ids, exactly like the starter page, so step 10 still applies.
 
-Either file works: `init --from` takes the Elementor export envelope or a bare element
+`assets/property-template-all-widgets.json` is the unstyled starter. It carries every
+relevant widget so nothing is missing, which also means it carries blocks most sites
+do not want; expect to remove some. Use it for the showcase tour and for someone who
+wants to build a look from scratch.
+
+Any of these files works: `init --from` takes the Elementor export envelope or a bare element
 array. If it is handed something else — an HTML page, a WordPress error, an export of
 the wrong type — it says so and stops.
 
@@ -788,6 +953,7 @@ references/INDEX.md                   widget index, with versions
 references/widgets/*.md               one file per widget: real control names
 references/catalog/*.json             the machine projection the scripts read
 assets/property-template-all-widgets.json   base template, all 15 relevant widgets
+assets/styles/property-template-style-*.json   the five ready-made styles (bold, modern, classic, corporate, minimal)
 assets/property-template-all-widgets.build-report.json   how it was derived
 assets/target-profile.example.json    copy and fill in per client
 assets/fixtures/                      extra documents, and negative cases
