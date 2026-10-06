@@ -78,5 +78,32 @@ class CanonicalHash(unittest.TestCase):
         self.assertNotIn(": ", CANONICAL)
 
 
+# Text that is not ASCII. PHP's json_encode() escapes every such character as \uXXXX
+# (astral ones as a surrogate pair), and until 2026-10-06 this client wrote them raw, so
+# any accented label — every Portuguese one — made `apply` warn that the server's hash
+# differed. The plugin's preview suite pins the same literal in case F1-04.
+UNICODE_DOC = json.loads(
+    '[{"id":"aaa2","elType":"section","settings":{"_title":"Imóveis à venda — São Paulo",'
+    '"icon":"🏢","quote":"\\"x\\"/y"},"elements":[]}]'
+)
+
+UNICODE_EXPECTED = "da3292f50c117f963cfcce37e0230e71a93d409fbef390c78d4a8b111f64f6dd"
+
+UNICODE_CANONICAL = (
+    '[{"elType":"section","elements":[],"id":"aaa2","settings":{"_title":'
+    '"Im\\u00f3veis \\u00e0 venda \\u2014 S\\u00e3o Paulo","icon":"\\ud83c\\udfe2",'
+    '"quote":"\\"x\\"/y"}}]'
+)
+
+
+class CanonicalHashOfText(unittest.TestCase):
+    def test_the_pinned_hash(self):
+        self.assertEqual(UNICODE_EXPECTED, canonical_hash(UNICODE_DOC))
+
+    def test_the_canonical_string_escapes_as_php_does(self):
+        self.assertEqual(UNICODE_EXPECTED,
+                         hashlib.sha256(UNICODE_CANONICAL.encode("ascii")).hexdigest())
+
+
 if __name__ == "__main__":
     unittest.main()

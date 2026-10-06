@@ -261,3 +261,49 @@ python3 scripts/tests/run_tests.py --json
 ```
 
 Offline, standard library only.
+
+## 13. The search page
+
+The page that lists the properties — map, filters, cards; usually `/properties` — is not
+an Elementor template: it has its own tool, `scripts/crecs_search.py`, and goes through
+the same preview. In WordPress, **CRE Cloud Solutions → Template preview → Preview the
+search page** hands back the session file (with `"kind": "search"`).
+
+> "Put the filters in a column on the left, with blue buttons, and make the map shorter
+> on phones."
+
+```bash
+P=scripts/crecs_preview.py
+B=scripts/crecs_search.py
+F=./search.json
+
+python3 $P current --out $F --session-file ./session.json    # what the preview shows now
+python3 $B show --file $F                                     # the tree, with ids
+
+# filters and results side by side, in a box; stacked on tablets and phones
+python3 $B add-box --file $F --wrap 5e2a0005,5e2a000d --direction row --id side0001
+python3 $B set --file $F --node side0001 --key direction --device tablet --value column
+python3 $B set --file $F --node 5e2a0002 --key direction --value column    # the main area follows the layout
+python3 $B set --file $F --node 5e2a0005 --key _width --value 300px
+python3 $B set --file $F --node 5e2a000d --key _grow --value yes
+
+# the property type button in blue, with a hover colour, and a new label
+python3 $B set --file $F --node 5e2a0008 --key button_background_color --value "#0a3d62"
+python3 $B set --file $F --node 5e2a0008 --key button_background_color --hover --value "#145a8d"
+python3 $B text --file $F --node 5e2a0008 --slot button --value "Type of property"
+
+# a shorter map on phones only
+python3 $B set --file $F --node 5e2a0004 --key map_height --device mobile --value 240px
+
+python3 $B validate --file $F
+python3 $P apply --document $F --session-file ./session.json    # the preview reloads
+```
+
+The ids come from `show`. `controls --node <id>` lists every setting a block takes and
+what it accepts; `references/search/SEARCH-LAYOUT.md` describes every block. A change the
+plugin would refuse is not written, and the command says why — the sort, for one, cannot
+go into the filters, because the Clear button would reset it.
+
+None of this changes the site. A person publishes, with the **Publish** button in the
+preview (administrators only). The Template preview screen shows what is live and puts
+any earlier layout back, or the original one.

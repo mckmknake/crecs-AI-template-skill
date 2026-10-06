@@ -26,12 +26,13 @@ copies that folder whole into every package, so a stray file there ships to ever
 
 ## Where this repository meets the plugin
 
-Exactly two places, both taking a path as an argument. Nothing is copied by hand.
+Exactly three places, all taking a path as an argument. Nothing is copied by hand.
 
 | Direction | What | Run from |
 | --- | --- | --- |
 | plugin → skill | `build-references.js` and `build-base-template.js` write `crecs-property-template/references/` and `assets/` | the plugin repository — they need its catalog, which needs WordPress and Elementor |
 | skill → plugin | `build-preview-index.js --skill <this repo>/crecs-property-template` regenerates the plugin's `includes/preview/data/crecs-preview-index.json` | the plugin repository |
+| plugin → skill | `tools/search-layout/build-search-reference.php --skill <this repo>/crecs-property-template` writes `references/search/` (the search page's vocabulary) and `scripts/tests/fixtures/search-vectors.json` (the plugin's own verdicts, which `tests/test_search.py` holds the Python checks to) | the plugin repository — plain PHP with mbstring, no WordPress |
 
 Consequences:
 
@@ -42,6 +43,14 @@ Consequences:
   suite case XR-01 compares them when `CRECS_SKILL_ROOT` points here.
 - The contract number `CONTRACT` in `scripts/crecs_preview.py` must match `'contract'` in the
   plugin's `includes/preview/class-crecs-preview-rest.php`.
+- **The search page's vocabulary is the plugin's.** `references/search/` and the vectors are
+  generated; a block or control the skill lacks is added in the plugin and regenerated, never
+  here. The plugin's preview suite case XR-02 runs the generator with `--check` when
+  `CRECS_SKILL_ROOT` points here.
+- **The canonical hash is a contract too**: `canonical_hash()` in `scripts/crecs_preview.py`
+  and `Crecs_Preview_Revisions::hash_document()` in the plugin must give the same bytes,
+  non-ASCII text included (`tests/test_canonical_hash.py` and the plugin's F1-03 / F1-04
+  pin the same literals).
 
 The full regeneration sequence is in the plugin repository's
 `tools/crecs-template-studio/README.md`, under *Regenerating after an Elementor or plugin

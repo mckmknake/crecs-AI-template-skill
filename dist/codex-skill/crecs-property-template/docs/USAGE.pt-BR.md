@@ -276,6 +276,52 @@ python3 scripts/tests/run_tests.py --json
 
 Offline, só biblioteca padrão.
 
+## 13. Página de busca
+
+A página que lista os imóveis — mapa, filtros, cards; normalmente `/properties` — não é
+um template do Elementor: tem ferramenta própria, `scripts/crecs_search.py`, e passa
+pela mesma prévia. No WordPress, **CRE Cloud Solutions → Template preview → Preview the
+search page** entrega o arquivo de sessão (com `"kind": "search"`).
+
+> "Quero os filtros numa coluna à esquerda, com botões azuis, e o mapa mais baixo no
+> celular."
+
+```bash
+P=scripts/crecs_preview.py
+B=scripts/crecs_search.py
+F=./busca.json
+
+python3 $P current --out $F --session-file ./sessao.json    # o que a prévia mostra agora
+python3 $B show --file $F                                    # a árvore, com os ids
+
+# filtros e resultados lado a lado, numa caixa; empilhados no tablet e no celular
+python3 $B add-box --file $F --wrap 5e2a0005,5e2a000d --direction row --id lado0001
+python3 $B set --file $F --node lado0001 --key direction --device tablet --value column
+python3 $B set --file $F --node 5e2a0002 --key direction --value column    # a área principal segue o layout
+python3 $B set --file $F --node 5e2a0005 --key _width --value 300px
+python3 $B set --file $F --node 5e2a000d --key _grow --value yes
+
+# o botão de tipo de imóvel azul, com hover, e o texto em português
+python3 $B set --file $F --node 5e2a0008 --key button_background_color --value "#0a3d62"
+python3 $B set --file $F --node 5e2a0008 --key button_background_color --hover --value "#145a8d"
+python3 $B text --file $F --node 5e2a0008 --slot button --value "Tipo de imóvel"
+
+# o mapa mais baixo só no celular
+python3 $B set --file $F --node 5e2a0004 --key map_height --device mobile --value 240px
+
+python3 $B validate --file $F
+python3 $P apply --document $F --session-file ./sessao.json    # a prévia recarrega
+```
+
+Os ids vêm do `show`. `controls --node <id>` lista cada configuração de um bloco e o
+que ela aceita; `references/search/SEARCH-LAYOUT.md` explica todos os blocos. Uma
+mudança que o plugin recusaria não é gravada, e o comando diz o motivo — a ordenação,
+por exemplo, não pode entrar nos filtros, porque o botão Limpar a zeraria.
+
+Nada disso muda o site. Quem publica é a pessoa, no botão **Publish** da prévia (só
+administradores). A tela Template preview mostra o layout no ar e devolve qualquer um
+dos anteriores, ou o original.
+
 ## Regras que realmente quebram a página
 
 - `crecs_property_data` precisa ser o **primeiro** widget: ele resolve o imóvel e

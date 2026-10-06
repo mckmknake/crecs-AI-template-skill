@@ -206,7 +206,9 @@ def canonical_hash(content) -> str:
             return [norm(i) for i in v]
         return v
 
-    blob = json.dumps(norm(content), separators=(",", ":"), ensure_ascii=False)
+    # ensure_ascii, because PHP's json_encode() escapes every non-ASCII character as
+    # \uXXXX: written raw, any accented text hashed differently on the two sides.
+    blob = json.dumps(norm(content), separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 

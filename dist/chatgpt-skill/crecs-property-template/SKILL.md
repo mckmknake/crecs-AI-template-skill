@@ -1,6 +1,6 @@
 ---
 name: crecs-property-template
-description: Guide a CRE Cloud Solutions customer from signing in to their WordPress site to a designed property-page template - widget tour, style, colors, logo, then importable Elementor JSON.
+description: Guide a CRE Cloud Solutions customer from signing in to their WordPress site to a designed property page (importable Elementor JSON) and property search page (previewed, then published).
 license: proprietary
 ---
 
@@ -10,6 +10,10 @@ One Elementor template serves **every** property on a CRECS site. Property data 
 never written into it: the CRECS widgets and the `crecs-property` dynamic tag fetch
 it from the CRE Cloud API at render time, keyed by slug. Your job is the **design**;
 the data layer stays exactly as it is.
+
+The same goes for the **search page** — the page that lists all their properties, with
+the map and the filters. It is not an Elementor template, so it has its own tool and its
+own section: *The search page*, below.
 
 ## The customer
 
@@ -55,9 +59,16 @@ desktop app it comes back with Cmd+Shift+B (Mac) or Ctrl+Shift+B (Windows). If t
 surface has no browser at all, say so and ask them to sign in in their own browser and
 come back — do not stall, and do not pretend to have looked at anything.
 
+If what they asked for is the search page — the list of properties with the map and the
+filters — say so in your welcome instead of the property-page line, and take the search
+page at step 3.
+
 **3. Open that site's preview.** In WordPress: **CRE Cloud Solutions → Template preview**.
 That screen starts a private preview and hands back a session file, which is how you —
-and they — see changes before anything goes live. Get the session file into your
+and they — see changes before anything goes live. It has two starts: **Preview the
+property page** and **Preview the search page**. For the search page, everything after
+this step is in *The search page* below, not in the guided design start; its session
+file says `"kind": "search"`. Get the session file into your
 workspace (they attach it, or you read it from a connected folder such as their
 Downloads) and pass it to `scripts/crecs_preview.py --session-file`. Never print the
 file's token. If the menu is not there, the site does not have the preview enabled —
@@ -525,6 +536,96 @@ crecs_template.py undo --workdir ./crecs-work
 every decision. A later session, in any harness, reads that and continues. Undo is
 itself a revision, so it can be undone.
 
+## The search page
+
+The page that lists their properties — the map, the filters, the result cards; usually
+at `/properties` — is designed through the same preview. It is not an Elementor page:
+the plugin draws it from a **layout document**, a tree of the page's blocks that says
+where each goes, how it looks and what its texts say. `scripts/crecs_search.py` edits
+that document. Before your first edit, read `references/search/SEARCH-LAYOUT.md`: every
+block, every setting it takes and every value it accepts, generated from the plugin.
+Never guess a setting name; `controls --node <id>` lists the real ones.
+
+### Start
+
+With the search page's session file (step 3), fetch what the preview shows, look at it,
+and give a short tour, top to bottom: the map; the filters (keyword search, for sale /
+for lease, property type, size, rate/price, broker, the Clear button); the results
+heading with the sort and the view buttons; the result cards; the "discover more" links.
+
+```
+python3 scripts/crecs_preview.py current --out ./search.json --session-file <file>
+python3 scripts/crecs_search.py show --file ./search.json
+```
+
+### What they can ask for
+
+- **Arrangement**: move blocks and group them in boxes — the filters in a column beside
+  the results, the map under the filters, the sort before the heading — with widths,
+  gaps, alignment and order set separately for computer, tablet and phone. A box can be
+  hidden on a device.
+- **Look**: colours, fonts, sizes, borders, corners, shadows and mouse-over colours of
+  the filters, the buttons, the cards, the headings, the sort and the view buttons.
+- **The map's height**, per device.
+- **Texts**: the filter buttons' labels, the placeholders, the sort options, Clear,
+  Deal Room.
+
+**Not yet**, so do not promise them and do not imitate them: hiding a single filter or a
+view button, which options a filter offers, its default value, the price and size
+ranges; the map's zoom, centre, controls and colours, its pins and clusters, the popup
+on the map; what a result card shows and how many columns the grid has; mouse-over
+effects between the cards and the pins. Say these are planned, and note the request.
+Never fake one with something else — a filter "hidden" by painting it white still sits
+in the page, and the visitor still tabs into it.
+
+### The loop
+
+```
+crecs_search.py show                    the tree, with each block's id
+crecs_search.py show --node <id>        one block: its settings, its parts, its texts
+crecs_search.py controls --node <id> --match color     the settings it takes
+crecs_search.py set --node <id> --key <setting> --value <value> [--device tablet|mobile] [--hover]
+crecs_search.py unset | text | move | add-box | remove-box | hide | unhide | validate
+crecs_preview.py apply --document ./search.json --session-file <file>
+```
+
+Every command takes `--file ./search.json` (or set `$CRECS_SEARCH_FILE`) and `--help`.
+Values are JSON or the usual shorthand: `#0a3d62`, `24px`, `8px 16px`,
+`0 2px 8px 0 rgba(0,0,0,0.2)`, `yes` / `no`.
+
+Each change is checked against the plugin's own rules first, and one the plugin would
+refuse is not written — the command says why. After each change, `apply`: the preview
+reloads the real search page. Then tell them in one sentence what is different.
+
+- **A box in the main area needs the main area to have a direction too** —
+  `set --node <main area> --key direction --value column`. Until it has one, it keeps
+  the page's original arrangement, which was not made for a box. The command reminds
+  you.
+- **Side by side**: a box with `direction` `row`, the filters with a `_width`, the
+  results with `_grow` `yes`, and `direction_mobile` `column` so phones stack them.
+- **The filters stay in the filters block, and nothing else goes there but boxes.** The
+  Clear button resets everything in it, so the sort, say, cannot move in. If they ask
+  for that, explain it in those words and offer what is closest.
+- **Undo**: `crecs_preview.py undo --session-file <file>`, or the undo button in the
+  preview. Then fetch `current` again before the next edit: your file is a step ahead.
+
+### Going live
+
+Nothing you do changes the live search page. When they like what they see, tell them:
+
+> When you're happy with it, press **Publish** in the preview window. From then on every
+> visitor sees this layout. If you change your mind, the Template preview screen in
+> WordPress can put any earlier layout back, or the original one.
+
+Publishing is **theirs**: the preview takes it only from its own Publish button, never
+from a command, and only for a WordPress administrator. If the button is grey, either
+the layout on display is already live — the preview says "this is the live layout" — or
+their user is not an administrator; say which. Never open the live search page to show
+a change: it shows what is published, not the preview.
+
+Everything in *Plain language* applies here too: no ids, setting names or codes in
+front of them — "the filter buttons", "the map", "the cards".
+
 ## The rules that actually break things
 
 ### The loader must be first
@@ -690,7 +791,11 @@ assets/property-template-all-widgets.json   base template, all 15 relevant widge
 assets/property-template-all-widgets.build-report.json   how it was derived
 assets/target-profile.example.json    copy and fill in per client
 assets/fixtures/                      extra documents, and negative cases
+references/search/SEARCH-LAYOUT.md    the search page: blocks, settings, values
+references/search/search-layout.json  the same, for the scripts (from the plugin)
 scripts/crecs_template.py             the CLI
+scripts/crecs_search.py               the search page's CLI
+scripts/crecs_preview.py              the preview: current, apply, undo, state
 scripts/tests/run_tests.py            offline test suite
 docs/                                 install and usage guides
 ```
