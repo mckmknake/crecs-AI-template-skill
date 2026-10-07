@@ -883,7 +883,8 @@ starting value, below. A shorter list comes closest — the search covers only t
 it offers, Clear or not — and that is why it always shows: the plugin refuses to hide a
 filter whose list is shorter (`E-SL-STUCK`), on any device. If they want one type and no
 filter, say the filter has to stay so visitors can see why they see only those
-properties, and offer to make it plain (one name, starting checked).
+properties, and offer to make it plain (one name, starting checked). Say too that the
+site's ready-made pages for other types still show those types (below).
 
 ### The map
 
@@ -1014,7 +1015,10 @@ apply:
 - **An address that already names a choice wins.** The site's ready-made search
   addresses — a type, a broker or a category in the URL, such as
   `/properties/office--properties` — start with that choice instead of the default for
-  the same filter. The keyword, size and rate/price defaults apply everywhere.
+  the same filter. The keyword, size and rate/price defaults apply everywhere. A shorter
+  list gives way too: on `/properties/retail--properties` a list that offers only Office
+  also shows Retail, checked, and the page lists retail properties. Say so whenever they
+  shorten a list.
 - **A hidden filter keeps its starting value.** Hiding a filter that starts with a value
   means visitors on that device still get it, and only Clear removes it; the plugin
   refuses the layout (`E-SL-STUCK`) if Clear is hidden there too. Say so before hiding

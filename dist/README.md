@@ -1,6 +1,6 @@
 # dist/crecs-template-studio
 
-Per-surface packages of the `crecs-property-template` skill, version **1.3.7**.
+Per-surface packages of the `crecs-property-template` skill, version **1.3.8**.
 Generated from `skills/crecs-property-template` by
 `tools/crecs-template-studio/build-skill-packages.js`. Do not edit these — regenerate.
 
