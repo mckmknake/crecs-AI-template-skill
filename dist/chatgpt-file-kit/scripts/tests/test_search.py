@@ -456,6 +456,44 @@ class Commands(unittest.TestCase):
         self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "pin_hover_popup", "--value", "no")[0])
         self.assertNotIn("pin_hover_popup", self.settings(MAP))
 
+    # -- the Stage 7 rehearsal ---------------------------------------------------------
+
+    def test_a_shorter_lists_filter_cannot_be_hidden(self):
+        self.assertEqual(0, self.run_cli("set", "--node", PROPERTY_TYPE, "--key", "offer", "--value", "Office")[0])
+        before = self.raw()
+        code, _out, err = self.run_cli("hide", "--node", PROPERTY_TYPE, "--device", "mobile")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn('"offer" holds every search to the names it lists', err)
+        self.assertIn("it is hidden on mobile", err)
+        self.assertEqual(before, self.raw())
+
+    def test_a_layout_already_refused_is_mended_a_step_at_a_time(self):
+        # A layout from before a rule: a shorter list's filter hidden everywhere.
+        doc = copy.deepcopy(self.vocab.builtin)
+        node = find(doc, PROPERTY_TYPE)[0]
+        node["settings"] = {"offer": ["Office"], "_hide_desktop": "yes", "_hide_tablet": "yes",
+                            "_hide_mobile": "yes"}
+        with open(self.path, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh)
+
+        for device, left in (("desktop", "tablet, mobile"), ("tablet", "mobile")):
+            code, out, err = self.run_cli("unhide", "--node", PROPERTY_TYPE, "--device", device)
+            self.assertEqual(0, code, device)
+            self.assertIn("written, but the plugin would still refuse the layout", err)
+            self.assertIn("it is hidden on %s" % left, err)
+            self.assertNotIn("_hide_" + device, self.settings(PROPERTY_TYPE))
+
+        # A change that makes it worse is still refused, mid-repair or not.
+        before = self.raw()
+        code, _out, err = self.run_cli("hide", "--node", PROPERTY_TYPE, "--device", "tablet")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertEqual(before, self.raw())
+
+        code, _out, err = self.run_cli("unhide", "--node", PROPERTY_TYPE, "--device", "mobile")
+        self.assertEqual(0, code)
+        self.assertNotIn("would still refuse", err)
+        self.assertEqual([], self.vocab.check(self.doc()))
+
     def test_nothing_about_the_groups_while_pins_do_not_group(self):
         self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "cluster_size", "--value", "40")[0])
         before = self.raw()

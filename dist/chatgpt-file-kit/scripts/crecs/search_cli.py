@@ -55,6 +55,32 @@ class Usage(Exception):
     """The request names something that does not exist, or a value that cannot be."""
 
 
+# The devices a finding about a filter visitors cannot see names, as the plugin lists them.
+_DEVICE_LIST = re.compile(r"\b(?:desktop|tablet|mobile)(?:, (?:desktop|tablet|mobile))*\b")
+
+
+def _devices(message):
+    found = _DEVICE_LIST.search(message or "")
+    return set(found.group(0).split(", ")) if found else set()
+
+
+def _known(finding, before):
+    """Was this problem already there? The same finding, or, for a filter visitors cannot
+    see (E-SL-STUCK), the same one on no more devices than it named before."""
+    if finding in before:
+        return True
+    if finding.get("code") != "E-SL-STUCK":
+        return False
+    shape = _DEVICE_LIST.sub("<devices>", finding.get("message") or "")
+    devices = _devices(finding.get("message"))
+    for old in before:
+        if old.get("code") == finding.get("code") and old.get("node") == finding.get("node") \
+                and _DEVICE_LIST.sub("<devices>", old.get("message") or "") == shape \
+                and devices <= _devices(old.get("message")):
+            return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 # file
 # ---------------------------------------------------------------------------
@@ -316,10 +342,16 @@ class Editor:
     # -- checks --------------------------------------------------------------
 
     def commit(self, before, what):
-        """Refuse the change if it brings a finding the document did not have."""
+        """Refuse the change if it brings a problem the document did not have.
+
+        A problem the document already had is no new one, so a layout that is already
+        refused can be mended a step at a time. One kind changes its words as it shrinks:
+        a filter visitors cannot see names the devices, and hiding it on fewer of them is
+        no new problem, while hiding it on more is.
+        """
         after = self.vocab.check(self.document)
-        new = [f for f in after if f not in before]
-        if blocking(new):
+        new = [f for f in after if f.get("level") == "error" and not _known(f, before)]
+        if new:
             raise Refused(what, new)
         return after
 
@@ -814,9 +846,13 @@ def main(argv=None):
         else:  # pragma: no cover - argparse guarantees one of the above
             raise Usage("unknown command %s" % args.command)
 
-        editor.commit(before, args.command)
+        remaining = editor.commit(before, args.command)
         save(path, document)
         _emit(result, args.json, lambda r: print(json.dumps(r, ensure_ascii=False)))
+        if blocking(remaining):
+            # Taken because it made nothing worse; apply is still refused until these go.
+            print("written, but the plugin would still refuse the layout:", file=sys.stderr)
+            _print_findings(remaining)
         return EXIT_OK
 
     except Usage as exc:

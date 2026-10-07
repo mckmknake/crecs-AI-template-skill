@@ -399,6 +399,13 @@ class Vocabulary:
                         "visitors could not uncheck it." % (block_type, name)))
                     break
 
+        # A shortened list holds every search to the names it offers, Clear or not, so the
+        # filter that does it must stay where visitors can see it.
+        if is_set("offer") and hidden:
+            out.append(_finding("E-SL-STUCK", node_id,
+                                '%s "offer" holds every search to the names it lists, so visitors must be '
+                                "able to see the filter: it is hidden on %s." % (block_type, ", ".join(hidden))))
+
         if is_set("start_min") and is_set("start_max") and settings["start_min"] > settings["start_max"]:
             out.append(_finding("E-SL-VALUE", node_id,
                                 '%s "start_min" is larger than "start_max".' % block_type))

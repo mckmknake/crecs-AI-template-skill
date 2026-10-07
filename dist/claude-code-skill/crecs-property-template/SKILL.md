@@ -879,7 +879,11 @@ it yet, and note the request. Never fake one thing with another — a filter "hi
 painting it white still sits in the page, and the visitor still tabs into it.
 
 **By design, never**: a filter the visitor cannot remove. What they can have is a
-starting value, below.
+starting value, below. A shorter list comes closest — the search covers only the names
+it offers, Clear or not — and that is why it always shows: the plugin refuses to hide a
+filter whose list is shorter (`E-SL-STUCK`), on any device. If they want one type and no
+filter, say the filter has to stay so visitors can see why they see only those
+properties, and offer to make it plain (one name, starting checked).
 
 ### The map
 
@@ -926,7 +930,10 @@ type's.**
   `crecs_preview.py media --search <words of its name> --session-file <file>` lists the
   site's images, newest first, with their numbers. A small, square image with a clear
   shape works best; it stands on the middle of its lower edge. The preview refuses a
-  number that is not an image of the site (`E-SL-MEDIA`).
+  number that is not an image of the site (`E-SL-MEDIA`). **When several images carry
+  that name**, a site often keeps copies, so take the one they just uploaded (the
+  newest), or the one whose title matches exactly, and say which in plain words (when it
+  was uploaded, how big it is), so they can tell you if they meant another.
 - **One kind of pin at a time.** Each change is checked as you make it, so to go from a
   drawn pin to an image, `unset` `pin_color` and `pin_accent_color`, then `pin_shape`,
   then `set` `pin_image`; the other way round, `unset` `pin_image` first.
@@ -1024,7 +1031,8 @@ The list shows only what you offer, in your order, and while nothing is checked 
 search covers only those names, not every type. Tell them that, and that a name the
 site has no listing for today simply does not appear. A type also matches longer names
 that contain it: offering *Office* finds *Medical Office* listings too. Every name that
-starts checked must be one the list offers.
+starts checked must be one the list offers. A shorter list's filter stays visible on
+every device: the plugin refuses to hide it (`E-SL-STUCK`).
 
 ### The loop
 
@@ -1051,6 +1059,11 @@ for `type_pins`.
 Each change is checked against the plugin's own rules first, and one the plugin would
 refuse is not written — the command says why. After each change, `apply`: the preview
 reloads the real search page. Then tell them in one sentence what is different.
+
+A layout the plugin already refuses — one from before a newer rule, say — is mended a
+step at a time: a change that makes nothing worse is written even while problems remain,
+and the command lists what is left ("written, but the plugin would still refuse the
+layout"). `apply` is refused until the list is empty, so finish the repair first.
 
 - **A box in the main area needs the main area to have a direction too** —
   `set --node <main area> --key direction --value column`. Until it has one, it keeps
