@@ -865,11 +865,16 @@ python3 scripts/crecs_search.py show --file ./search.json
   show, and its look — a ready-made one (the site's own, Google's standard, silver,
   dark, retro) with their own colours for water, land, roads and names, and the names
   and places of interest shown or hidden.
+- **The pins and the groups of pins**: the default pin — one the plugin draws in their
+  colours (a classic pin, a dot, a square or a building) or an image from their media
+  library, such as their logo — and the pins' size; when they ask, a property type's pin
+  too; whether nearby pins join into numbered groups, the groups' colours and size, their
+  number shown or not, and how near, and up to what zoom, pins group.
 
-**Not yet**, so do not promise them and do not imitate them: the map's pins and
-clusters; mouse-over effects between the cards and the pins. Say these are planned, and
-note the request. Never fake one with something else — a filter "hidden" by painting it
-white still sits in the page, and the visitor still tabs into it.
+**Not yet**, so do not promise them and do not imitate them: mouse-over effects between
+the cards and the pins. Say these are planned, and note the request. Never fake one with
+something else — a filter "hidden" by painting it white still sits in the page, and the
+visitor still tabs into it.
 
 **By design, never**: a filter the visitor cannot remove. What they can have is a
 starting value, below.
@@ -890,6 +895,54 @@ starting value, below.
 - **Gestures**: `greedy` moves the map with the mouse wheel even while the visitor is
   scrolling the page; `cooperative` asks for Ctrl (two fingers on a phone). If they ask
   for scroll-to-zoom, say what it does to scrolling past the map.
+
+### Pins and groups of pins
+
+All on the map block. **Change the default pin only, unless they ask about a property
+type's.**
+
+- **Whose pin is whose.** CRE Cloud gives a property its type's pin when the type has
+  one, otherwise the account's own pin, and the plugin shows its red pin when CRE Cloud
+  gives none. A pin the layout draws (`pin_shape`) or an image (`pin_image`) is the
+  **default pin**: it takes the place of the account's pin and the plugin's red one, and
+  every type's own pin stays. Say so when they choose one — the properties whose type
+  has its own pin in CRE Cloud keep it — and offer to change those too. `pin_size`
+  resizes every pin.
+- **A type's pin, only when they ask.** `cre_cloud_type_pins` `replaced` gives every
+  property the default pin. `type_pins` gives some types a pin of their own, over
+  everything else: `set --key type_pins --value "Retail: building #00aa33; Office"`. A
+  type followed by a shape and up to two colours (the pin's, then its detail's) is a
+  drawn pin, whatever it leaves out coming from the default drawn pin; a type alone
+  takes the default pin. Take the names from `crecs_preview.py options`. The value is the
+  whole list: to add a type, set it again with the ones they already have.
+- **A drawn pin** (`pin_shape`: `pin`, `circle`, `square` or `building`) takes
+  `pin_color` and `pin_accent_color`, the dot, ring, inner square or building on it,
+  written `#rrggbb`. Unset, red with white.
+- **An image** (`pin_image`) is the number of an image in their media library. Open
+  **Media → Add New** for them and ask them to drag the file onto it — choosing a file on
+  their own computer is the one part you cannot do — then find its number yourself:
+  `crecs_preview.py media --search <words of its name> --session-file <file>` lists the
+  site's images, newest first, with their numbers. A small, square image with a clear
+  shape works best; it stands on the middle of its lower edge. The preview refuses a
+  number that is not an image of the site (`E-SL-MEDIA`).
+- **One kind of pin at a time.** Each change is checked as you make it, so to go from a
+  drawn pin to an image, `unset` `pin_color` and `pin_accent_color`, then `pin_shape`,
+  then `set` `pin_image`; the other way round, `unset` `pin_image` first.
+- **Where the page's own pins and groups sit, only when they ask.** The page has always
+  shown its pins (CRE Cloud's and the plugin's) a little left of and below their
+  property, and its groups a little off their place, with the number high on the larger
+  ones. Leave that alone unless they notice it and ask: then `pin_position` `point`
+  stands those pins on their property, and `cluster_position` `centred` centres those
+  groups. Pins the layout draws, images and groups whose look the layout sets are
+  already placed right.
+- **Groups** (`cluster`, `on` or `off`) join nearby pins into a numbered circle:
+  `cluster_color`, `cluster_text_color`, `cluster_size` (the smallest group, in pixels),
+  `cluster_numbers` (`hidden` leaves plain circles), `cluster_max_zoom` (past it every
+  pin shows on its own) and `cluster_grid` (how near, in pixels on the screen, pins must
+  be to join one). Unset, the settings screen decides whether they group, and in what
+  colour. To turn groups off, `unset` the other group settings first.
+- **To check**, look at the map in the preview and zoom in and out: groups split apart
+  as you zoom in.
 
 ### Cards and the map popup
 
@@ -958,14 +1011,17 @@ crecs_search.py set --node <id> --key <setting> --value <value> [--device tablet
 crecs_search.py unset | text | move | add-box | remove-box | hide | unhide | validate
 crecs_preview.py apply --document ./search.json --session-file <file>
 crecs_preview.py options --session-file <file>          the site's property types and brokers
+crecs_preview.py media --session-file <file> [--search <words>]   the site's images, by number
 ```
 
 Every command takes `--file ./search.json` (or set `$CRECS_SEARCH_FILE`) and `--help`.
 Values are JSON or the usual shorthand: `#0a3d62`, `24px`, `8px 16px`,
 `0 2px 8px 0 rgba(0,0,0,0.2)`, `yes` / `no`, `5,000` for an amount, `Office, Retail`
 for a list of names (a name with a comma in it goes as JSON: `'["Doe, Jane"]'`), and
-`name, rates, buttons` for the parts of a card or of the popup, in order, and
-`38.627, -90.199` for `map_center`, which sets the map's latitude and longitude together.
+`name, rates, buttons` for the parts of a card or of the popup, in order,
+`38.627, -90.199` for `map_center`, which sets the map's latitude and longitude together,
+an image's number, such as `6543`, for `pin_image`, and `Retail: building #00aa33; Office`
+for `type_pins`.
 
 Each change is checked against the plugin's own rules first, and one the plugin would
 refuse is not written — the command says why. After each change, `apply`: the preview

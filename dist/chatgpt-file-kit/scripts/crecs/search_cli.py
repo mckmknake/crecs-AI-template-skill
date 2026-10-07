@@ -124,14 +124,50 @@ def _length(token, spec):
     return _number(match.group(1)), unit
 
 
+def _type_pins(spec, raw, parsed):
+    """Pins by property type from `Retail: pin #00aa33 #ffffff; Office`, or JSON.
+
+    Each type is followed, after a colon, by a shape and up to two colours, the pin's and
+    its detail's; a type alone takes the map's default pin. A type with a colon or a
+    semicolon in its name goes as JSON.
+    """
+    if parsed is None or isinstance(parsed, (list, dict)):
+        return parsed
+    if parsed is not raw and not isinstance(parsed, str):
+        raise Usage('give the pins as "Retail: pin #00aa33; Office", or as JSON: '
+                    '[{"type": "Retail", "shape": "pin", "color": "#00aa33"}]')
+    text = parsed if isinstance(parsed, str) else raw
+    pins = []
+    for part in text.split(";"):
+        if not part.strip():
+            continue
+        name, _colon, rest = part.partition(":")
+        pin = {"type": name.strip()}
+        for word in rest.split():
+            if word in spec["shapes"]:
+                if "shape" in pin:
+                    raise Usage("one shape for %s" % pin["type"])
+                pin["shape"] = word
+            elif word.startswith("#"):
+                if "accent" in pin:
+                    raise Usage("at most two colours for %s, the pin's and its detail's" % pin["type"])
+                pin["accent" if "color" in pin else "color"] = word
+            else:
+                raise Usage("%r is neither a shape (%s) nor a colour written #rrggbb"
+                            % (word, "|".join(spec["shapes"])))
+        pins.append(pin)
+    return pins or None
+
+
 def parse_value(spec, raw):
     """A command-line value in the shape the control stores.
 
     JSON is taken as it is. Otherwise the familiar shorthand for the control's type: `24px`
     for a size, `8px 16px` for spacing on four sides, `0 2px 8px 0 rgba(0,0,0,0.2)` for a
     shadow, `yes` / `no` for a switch or a hide, `5,000` for an amount, `Office, Retail` for
-    a list of names (a name with a comma in it needs JSON: '["Doe, Jane"]'), and
-    `name, rates, buttons` for a choice of parts.
+    a list of names (a name with a comma in it needs JSON: '["Doe, Jane"]'),
+    `name, rates, buttons` for a choice of parts, and `Retail: pin #00aa33; Office` for
+    pins by property type.
     """
     kind = spec["type"]
     try:
@@ -164,6 +200,8 @@ def parse_value(spec, raw):
         else:
             raise Usage('give the names as a JSON list, ["Office", "Retail"], or separated by commas')
         return [name for name in names if name] or None
+    if kind == "type_pins":
+        return _type_pins(spec, raw, parsed)
     if kind in ("switch", "hide"):
         word = str(parsed).strip().lower() if not isinstance(parsed, bool) else ("yes" if parsed else "no")
         if word in ("yes", "true", "on", "1"):
@@ -175,6 +213,10 @@ def parse_value(spec, raw):
         if isinstance(parsed, int) and not isinstance(parsed, bool):
             return parsed
         raise Usage("must be a whole number")
+    if kind == "media":
+        if isinstance(parsed, int) and not isinstance(parsed, bool):
+            return parsed
+        raise Usage("must be an image's number, such as 6543: `crecs_preview.py media` lists them")
     if kind == "slider":
         if isinstance(parsed, dict):
             return parsed
@@ -549,6 +591,10 @@ def control_rows(vocab, document, node_id, match=None):
             allowed = "number %s..%s" % (spec["min"], spec["max"])
         elif spec["type"] == "map_color":
             allowed = "#rrggbb"
+        elif spec["type"] == "media":
+            allowed = "an image's number (crecs_preview.py media)"
+        elif spec["type"] == "type_pins":
+            allowed = 'pins by type: "Retail: pin #00aa33; Office", or JSON'
         elif spec["type"] == "hide":
             allowed = "yes|no"
         elif spec["type"] == "text":

@@ -27,6 +27,7 @@ Usage:
     crecs_preview.py close
     crecs_preview.py watch [--interval 2.5]
     crecs_preview.py options        (a search page session: the site's types and brokers)
+    crecs_preview.py media [--search logo]   (the site's images, newest first, with their numbers)
 
 Exit codes: 0 success, 2 refused by the server (conflict, invalid, rate limited),
 3 transport or configuration problem.
@@ -169,6 +170,12 @@ class Client:
         """The property types and brokers the site lists, by the names `offer` and
         `start_checked` use."""
         return self._call("GET", self._session_path("/search-options"))
+
+    def media(self, search: str = "") -> dict:
+        """The site's images, newest first, by the number a layout's `pin_image` takes;
+        `search` keeps those whose title has those words."""
+        query = "?" + urllib.parse.urlencode({"search": search}) if search else ""
+        return self._call("GET", self._session_path("/media") + query)
 
 
 #: Where a person goes to start a preview, reissue a link or take a fresh session file.
@@ -395,6 +402,10 @@ def main(argv=None) -> int:
     pr = sub.add_parser("property", parents=[common])
     pr.add_argument("slug")
 
+    me = sub.add_parser("media", parents=[common],
+                        help="the site's images, newest first, with the numbers a layout names them by")
+    me.add_argument("--search", default="", help="only images whose title has these words")
+
     ex = sub.add_parser("export", parents=[common])
     ex.add_argument("--out", type=Path, help="write the export here")
 
@@ -471,6 +482,17 @@ def main(argv=None) -> int:
                     print(f"{label} ({len(names)}):")
                     for name in names:
                         print(f"  {name}")
+                return 0
+        elif args.cmd == "media":
+            out = client.media(args.search)
+            if not args.json:
+                # The number first: it is what a layout's pin_image takes.
+                images = out.get("images") or []
+                print(f"images ({len(images)}), newest first:")
+                for img in images:
+                    size = f"{img.get('width')}x{img.get('height')}" if img.get("width") else "size unknown"
+                    print(f"  {str(img.get('id')):>7}  {img.get('title') or '(no title)'}  [{img.get('file')}, {size}, "
+                          f"uploaded {str(img.get('uploaded', ''))[:10]}]")
                 return 0
         else:  # pragma: no cover - argparse guarantees one of the above
             raise Transport(f"unknown command {args.cmd}")

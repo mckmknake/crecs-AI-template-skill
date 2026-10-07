@@ -112,6 +112,8 @@ class Vocabulary:
             return self._list_problem(value)
         if kind == "fields":
             return self._fields_problem(spec, value)
+        if kind == "type_pins":
+            return self._type_pins_problem(spec, value)
         if kind == "decimal":
             ok = isinstance(value, (int, float)) and not isinstance(value, bool) \
                 and spec["min"] <= value <= spec["max"]
@@ -120,6 +122,12 @@ class Vocabulary:
             # Google's map styles take a hex colour and nothing else.
             ok = isinstance(value, str) and _MAP_COLOR.match(value) is not None
             return "" if ok else "must be a colour written #rrggbb or #rgb"
+        if kind == "media":
+            # Only the number: whether it is an image of the site is the preview's to say.
+            ok = _is_int(value) and 1 <= value <= self.limits["media_max"]
+            return "" if ok else \
+                "must be the number of an image in the media library, a whole number from 1 to %d" \
+                % self.limits["media_max"]
         if kind == "number":
             ok = _is_int(value) and spec["min"] <= value <= spec["max"]
             return "" if ok else "must be a whole number from %d to %d" % (spec["min"], spec["max"])
@@ -178,6 +186,43 @@ class Vocabulary:
             key = name_key(item)
             if key in seen:
                 return 'names "%s" twice' % item
+            seen.add(key)
+        return ""
+
+    def _type_pins_problem(self, spec, value):
+        """Why a set of pins by property type is not acceptable, or ''.
+
+        Each pin is {"type": a property type's name, and "shape", "color", "accent" for one
+        the plugin draws}, no type twice. The checks run in the plugin's order, so the
+        first problem is the one it gives.
+        """
+        form = '{"type": ..., "shape": ..., "color": ..., "accent": ...}'
+        pins = php_list(value)
+        if pins is None:
+            return "must be a list of pins, each " + form
+        if len(pins) > self.limits["list_max"]:
+            return "must hold at most %d pins" % self.limits["list_max"]
+        seen = set()
+        for n, pin in enumerate(pins, 1):
+            # An object, not a list: PHP gives both as arrays, a list keyed 0, 1... in order.
+            if not isinstance(pin, dict) or not pin or php_list(pin) is not None:
+                return "pin %d must be %s" % (n, form)
+            for key in pin:
+                if key not in ("type", "shape", "color", "accent"):
+                    return 'pin %d has "%s", which a pin does not have: type, shape, color, accent' % (n, key)
+            name = pin.get("type")
+            if not isinstance(name, str) or _php_trim(name) == "" or not _is_utf8(name) \
+                    or _CONTROL_CHAR.search(name) or len(name) > self.limits["text_max"]:
+                return ('pin %d needs "type": a property type\'s name, one line of at most %d characters'
+                        % (n, self.limits["text_max"]))
+            if "shape" in pin and not _strict_in(pin["shape"], spec["shapes"]):
+                return 'pin %d "shape" must be one of: %s' % (n, ", ".join(spec["shapes"]))
+            for key in ("color", "accent"):
+                if key in pin and not (isinstance(pin[key], str) and _MAP_COLOR.match(pin[key])):
+                    return 'pin %d "%s" must be a colour written #rrggbb or #rgb' % (n, key)
+            key = name_key(name)
+            if key in seen:
+                return 'names the type "%s" twice' % name
             seen.add(key)
         return ""
 
@@ -389,6 +434,25 @@ class Vocabulary:
                                 '%s "map_center_lat" and "map_center_lng" go together: set both or '
                                 "neither." % block_type))
 
+        # Stage 4: one kind of pin; colours only for a pin the plugin draws; nothing about
+        # the groups of pins while pins do not group.
+        if is_set("pin_shape") and is_set("pin_image"):
+            out.append(_finding("E-SL-VALUE", node_id,
+                                '%s "pin_shape" and "pin_image" are two kinds of pin: set one.'
+                                % block_type))
+        for name in ("pin_color", "pin_accent_color"):
+            if is_set(name) and not is_set("pin_shape"):
+                out.append(_finding("E-SL-VALUE", node_id,
+                                    '%s "%s" colours a pin the plugin draws: set "pin_shape" too.'
+                                    % (block_type, name)))
+        if is_set("cluster") and settings["cluster"] == "off":
+            for name in ("cluster_color", "cluster_text_color", "cluster_size", "cluster_numbers",
+                         "cluster_max_zoom", "cluster_grid", "cluster_position"):
+                if is_set(name):
+                    out.append(_finding("E-SL-VALUE", node_id,
+                                        '%s "%s" does nothing while "cluster" is "off".'
+                                        % (block_type, name)))
+
         # What the Clear rule in check() needs: where Clear is hidden, and every filter that
         # starts with a value, with the devices where visitors cannot see it.
         if block_type == "crecs_search_filter_clear":
@@ -417,9 +481,10 @@ def is_unset(spec, value):
     if value is None or value == "":
         return True
     kind = spec["type"]
-    # An empty list leaves the list as the site has it, and an empty choice of parts the
-    # card or the popup as the page has it; PHP decodes [] and {} alike.
-    if kind in ("list", "fields") and isinstance(value, (list, dict)) and not value:
+    # An empty list leaves the list as the site has it, an empty choice of parts the card
+    # or the popup as the page has it, and no pin by type every type's; PHP decodes []
+    # and {} alike.
+    if kind in ("list", "fields", "type_pins") and isinstance(value, (list, dict)) and not value:
         return True
     if kind == "slider" and isinstance(value, dict) and value.get("size") == "":
         return True

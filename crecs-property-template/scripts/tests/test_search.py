@@ -376,6 +376,76 @@ class Commands(unittest.TestCase):
         code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_center_lng", "--value", "90,199")
         self.assertEqual(search_cli.EXIT_USAGE, code)
 
+    # -- the pins and the groups of pins -------------------------------------------
+
+    def test_a_drawn_pin_or_an_image_and_the_order_to_change_from_one_to_the_other(self):
+        for key, value in (("pin_shape", "building"), ("pin_color", "#0a3d62"), ("pin_size", "40"),
+                           ("cluster_color", "#0a3d62"), ("cluster_numbers", "hidden")):
+            self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", key, "--value", value)[0], key)
+        self.assertEqual({"pin_shape": "building", "pin_color": "#0a3d62", "pin_size": 40,
+                          "cluster_color": "#0a3d62", "cluster_numbers": "hidden"}, self.settings(MAP))
+        self.assertEqual([], self.vocab.check(self.doc()))
+
+        # One kind of pin: the image waits until the drawn pin and its colour are gone.
+        before = self.raw()
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "pin_image", "--value", "6543")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn("two kinds of pin", err)
+        code, _out, err = self.run_cli("unset", "--node", MAP, "--key", "pin_shape")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn('"pin_color" colours a pin the plugin draws', err)
+        self.assertEqual(before, self.raw())
+        for key in ("pin_color", "pin_shape"):
+            self.assertEqual(0, self.run_cli("unset", "--node", MAP, "--key", key)[0], key)
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "pin_image", "--value", "6543")[0])
+        self.assertEqual(6543, self.settings(MAP)["pin_image"])
+
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "pin_image", "--value", "our logo")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("crecs_preview.py media", err)
+        rows = {row["name"]: row for row in search_cli.control_rows(self.vocab, self.doc(), MAP, "pin_")}
+        self.assertEqual("an image's number (crecs_preview.py media)", rows["pin_image"]["allowed"])
+        self.assertEqual("one of pin|circle|square|building", rows["pin_shape"]["allowed"])
+
+    def test_pins_by_property_type_and_the_page_pins_put_right_only_when_asked(self):
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "type_pins", "--value",
+                                         "Retail: building #00aa33 #fff; Office")[0])
+        self.assertEqual([{"type": "Retail", "shape": "building", "color": "#00aa33", "accent": "#fff"},
+                          {"type": "Office"}], self.settings(MAP)["type_pins"])
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "type_pins", "--value",
+                                         '[{"type": "Medical Office", "color": "#0a3d62"}]')[0])
+        self.assertEqual([{"type": "Medical Office", "color": "#0a3d62"}], self.settings(MAP)["type_pins"])
+
+        before = self.raw()
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "type_pins", "--value", "Retail; retail ")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn('names the type "retail" twice', err)
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "type_pins", "--value", "Retail: star")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("neither a shape", err)
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "type_pins", "--value", "Retail: #111 #222 #333")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("at most two colours", err)
+        self.assertEqual(before, self.raw())
+
+        for key, value in (("cre_cloud_type_pins", "replaced"), ("pin_position", "point"),
+                           ("cluster_position", "centred")):
+            self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", key, "--value", value)[0], key)
+        self.assertEqual([], self.vocab.check(self.doc()))
+        self.assertEqual(0, self.run_cli("unset", "--node", MAP, "--key", "type_pins")[0])
+        self.assertNotIn("type_pins", self.settings(MAP))
+
+    def test_nothing_about_the_groups_while_pins_do_not_group(self):
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "cluster_size", "--value", "40")[0])
+        before = self.raw()
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "cluster", "--value", "off")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn('"cluster_size" does nothing while "cluster" is "off"', err)
+        self.assertEqual(before, self.raw())
+        self.assertEqual(0, self.run_cli("unset", "--node", MAP, "--key", "cluster_size")[0])
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "cluster", "--value", "off")[0])
+        self.assertEqual({"cluster": "off"}, self.settings(MAP))
+
     def test_columns_are_set_per_device(self):
         self.assertEqual(0, self.run_cli("set", "--node", RESULTS, "--key", "grid_columns",
                                          "--value", "3")[0])
@@ -460,6 +530,56 @@ class PreviewOptions(unittest.TestCase):
         self.assertEqual("/wp-json/crecs/preview/v1/sessions/ps_test/search-options", seen["path"])
         self.assertEqual("Bearer token-secret-123", seen["auth"])
         self.assertEqual("property types (2):\n  Industrial\n  Office\nbrokers (1):\n  Jane Doe, SIOR\n",
+                         out.getvalue())
+        self.assertNotIn("token-secret-123", out.getvalue() + err.getvalue())
+
+
+class PreviewMedia(unittest.TestCase):
+    """crecs_preview.py media: the site's images by number, and never the token."""
+
+    def test_the_images_come_numbered_newest_first_and_the_token_never_shows(self):
+        seen = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen["path"] = self.path
+                seen["auth"] = self.headers.get("Authorization")
+                body = json.dumps({"images": [
+                    {"id": 6543, "title": "Our logo", "file": "logo.png", "url": "https://example.test/logo.png",
+                     "width": 300, "height": 120, "uploaded": "2026-10-06T12:00:00+00:00"},
+                    {"id": 12, "title": "", "file": "pin.svg", "url": "https://example.test/pin.svg",
+                     "width": 0, "height": 0, "uploaded": "2026-01-02T00:00:00+00:00"},
+                ]}).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):  # keep the test output readable
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        folder = tempfile.mkdtemp(prefix="crecs-media-test-")
+        try:
+            session = os.path.join(folder, "session.json")
+            with open(session, "w", encoding="utf-8") as fh:
+                json.dump({"id": "ps_test", "token": "token-secret-123",
+                           "base": "http://127.0.0.1:%d" % server.server_port}, fh)
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = crecs_preview.main(["media", "--search", "our logo", "--session-file", session])
+        finally:
+            server.shutdown()
+            server.server_close()
+            shutil.rmtree(folder, ignore_errors=True)
+        self.assertEqual(0, code)
+        self.assertEqual("/wp-json/crecs/preview/v1/sessions/ps_test/media?search=our+logo", seen["path"])
+        self.assertEqual("Bearer token-secret-123", seen["auth"])
+        self.assertEqual("images (2), newest first:\n"
+                         "     6543  Our logo  [logo.png, 300x120, uploaded 2026-10-06]\n"
+                         "       12  (no title)  [pin.svg, size unknown, uploaded 2026-01-02]\n",
                          out.getvalue())
         self.assertNotIn("token-secret-123", out.getvalue() + err.getvalue())
 

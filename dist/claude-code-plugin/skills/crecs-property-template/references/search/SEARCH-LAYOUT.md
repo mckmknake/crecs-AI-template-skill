@@ -33,6 +33,7 @@ The preview and Publish refuse a document with any of these, and the live page f
 | `E-SL-VALUE` | a value outside what its control accepts, or settings of one block that do not fit together (see *What the page starts with*) |
 | `E-SL-STUCK` | a filter starts with a value and cannot be seen on a device (it, its choice or a box around it is hidden there) where Clear cannot be seen either: visitors there could never remove it |
 | `E-SL-LIMIT` | more than 150 blocks, or nested more than 12 deep |
+| `E-SL-MEDIA` | from the preview only, which knows the site: `pin_image` is not an image in this site's media library |
 
 ## Control names
 
@@ -116,6 +117,16 @@ Set on the **Map** block (`crecs_search_map`); the map reads them when it opens,
 - **How it behaves.** `map_type` (streets, satellite, both, relief) and `map_gestures`. The controls — `map_zoom_control`, `map_type_control`, `map_fullscreen_control`, `map_street_view_control` — are `shown` or `hidden`, and once set they apply on phones too, which show none today.
 - **How it looks.** `map_style` picks a ready-made look (`site`, `google`, `silver`, `dark`, `retro`); `map_water_color`, `map_land_color`, `map_road_color` and `map_label_color` go over it, written `#rrggbb`, and `map_labels` and `map_points_of_interest` show or hide those.
 
+## Pins and groups of pins
+
+Also on the **Map** block. Unset, each property's pin is the one CRE Cloud gives it, its property type's or, when the type has none, the account's own; the plugin's red pin when CRE Cloud gives none; all 50 pixels, placed as the page has always placed them. Pins group as the settings screen says, in its colour.
+
+- **The default pin.** `pin_shape` draws one of the plugin's pins (`pin`, `circle`, `square`, `building`) in `pin_color`, the plugin's red unless set, with a `pin_accent_color` detail, white unless set; `pin_image` uses an image from the site's media library instead, standing on the middle of its lower edge. One or the other, never both; `pin_color` and `pin_accent_color` need `pin_shape`. It is the default pin: it replaces CRE Cloud's account pin and the plugin's red one, and the pins CRE Cloud gives each property type stay. CRE Cloud's account pin is told from a type's by its address (`/web_themes/`), which only accounts whose files are on Amazon S3 have; elsewhere every CRE Cloud pin counts as its type's and stays. `pin_size` is every pin's height in pixels.
+- **A property type's pin**, only when the person asks. `cre_cloud_type_pins: replaced` gives every property the default pin instead of its type's. `type_pins` gives some types a pin of their own, over everything else: each `{"type": …}` names a type as the site lists it (`crecs_preview.py options`), matched ignoring case and surrounding spaces; with `shape`, `color` or `accent` it is a drawn pin, each part left out taken from the default drawn pin (or a red `pin` with white), and with only its type it is the default pin.
+- **Where the page's own pins and groups sit**, only when the person asks. The page places its pins (CRE Cloud's and the plugin's) about 15 pixels left of and 9 below their property, on a 50-pixel pin, and draws a group from its top-left corner, with the number 16 pixels down whatever the group's size. `pin_position: point` stands those pins on their point; `cluster_position: centred` centres those groups on their place with the number in the middle. The pins a layout draws, an image, and groups whose look the layout sets are always placed right.
+- **Groups of pins.** `cluster` turns grouping `on` or `off`, over the settings screen. `cluster_color` and `cluster_text_color` colour a group and its number; `cluster_size` is the smallest group's size in pixels, each larger group a fifth bigger, as today; `cluster_numbers` shows or hides the number; `cluster_max_zoom` is the zoom past which pins no longer group; `cluster_grid` is how near, in pixels on the screen, pins must be to join one group. Nothing about the groups can be set while `cluster` is `off`.
+- **The image's number.** `crecs_preview.py media` lists the site's images, newest first, with their numbers. The preview refuses a number that is not an image of this site (`E-SL-MEDIA`); a published layout whose image is deleted later draws its pins as if no image were set.
+
 ## Blocks
 
 ### Page — `crecs_search_page`
@@ -178,6 +189,22 @@ Options:
 - `map_label_color`: the colour of the map's names and labels, over the look. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
 - `map_labels`: the map's names and labels, all of them. Value: one of `shown`, `hidden`.
 - `map_points_of_interest`: shops, schools, parks and other places of interest; the site's own look hides them. Value: one of `shown`, `hidden`.
+- `pin_shape`: the default pin, one the plugin draws in `pin_color` with a `pin_accent_color` detail: it replaces CRE Cloud's account pin and the plugin's red one, not a property type's; not with `pin_image`. Value: one of `pin`, `circle`, `square`, `building`.
+- `pin_image`: the default pin as an image from the site's media library, standing on the middle of its lower edge; not with `pin_shape`. Value: the number of an image in the site's media library, a whole number from 1 to 2147483647 (`crecs_preview.py media` lists them).
+- `pin_color`: the drawn pin's colour; unset, the plugin's red (`#d70323`); needs `pin_shape`. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
+- `pin_accent_color`: the colour of the drawn pin's detail (its dot, ring, inner square or building); unset, white; needs `pin_shape`. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
+- `pin_size`: every pin's height in pixels; unset, 50 for CRE Cloud's pins and the plugin's red one, 44 for a drawn pin or an image, 28 for the circle. Value: a whole number from 16 to 96.
+- `cre_cloud_type_pins`: whether the pins CRE Cloud gives each property type stay; unset, `kept`; `replaced` gives those properties the default pin. Only when the person asks. Value: one of `kept`, `replaced`.
+- `type_pins`: pins of their own for some property types, over everything else: a drawn pin when it has `shape`, `color` or `accent` (each part left out taken from the default drawn pin), the default pin when it has only its type. Only when the person asks. Value: a list of at most 50 pins, each `{"type": a property type's name, "shape": …, "color": …, "accent": …}`, everything but `type` optional: `shape` one of `pin`, `circle`, `square`, `building`, `color` and `accent` written `#rrggbb` or `#rgb`; no type twice (case and surrounding spaces aside).
+- `pin_position`: where the page's own pins (CRE Cloud's and the plugin's red one) stand: `page`, as the page has always placed them, about 15 pixels left of and 9 below their property; `point`, on their point. Unset, `page`. Only when the person asks. Value: one of `page`, `point`.
+- `cluster`: whether nearby pins join into numbered groups; unset, the settings screen decides. Value: one of `on`, `off`.
+- `cluster_color`: the groups' colour; unset, the settings screen's. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
+- `cluster_text_color`: the colour of the number on a group; unset, white. Value: a colour written `#rrggbb` or `#rgb` (the map takes nothing else).
+- `cluster_size`: the smallest group's size in pixels, each larger group a fifth bigger; unset, 50. Value: a whole number from 24 to 120.
+- `cluster_numbers`: the number of pins on each group. Value: one of `shown`, `hidden`.
+- `cluster_max_zoom`: the zoom past which pins no longer group; unset, 13. Value: a whole number from 1 to 20.
+- `cluster_grid`: how near, in pixels on the screen, pins must be to join one group; unset, 40. Value: a whole number from 10 to 200.
+- `cluster_position`: where groups in the page's own look sit: `page`, held by their top-left corner with the number high on larger groups, as the page has always drawn them; `centred`, on their place with the number in the middle. Unset, `page`. Groups whose look the layout sets are always centred. Only when the person asks. Value: one of `page`, `centred`.
 
 ### Filters — `crecs_search_filters`
 
