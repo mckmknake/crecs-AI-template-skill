@@ -127,6 +127,17 @@ Also on the **Map** block. Unset, each property's pin is the one CRE Cloud gives
 - **Groups of pins.** `cluster` turns grouping `on` or `off`, over the settings screen. `cluster_color` and `cluster_text_color` colour a group and its number; `cluster_size` is the smallest group's size in pixels, each larger group a fifth bigger, as today; `cluster_numbers` shows or hides the number; `cluster_max_zoom` is the zoom past which pins no longer group; `cluster_grid` is how near, in pixels on the screen, pins must be to join one group. Nothing about the groups can be set while `cluster` is `off`.
 - **The image's number.** `crecs_preview.py media` lists the site's images, newest first, with their numbers. The preview refuses a number that is not an image of this site (`E-SL-MEDIA`); a published layout whose image is deleted later draws its pins as if no image were set.
 
+## The mouse over cards and pins
+
+Four effects, each its own setting, and none of them unless set: today a card and its pin do not answer the mouse.
+
+- **The card stands out** while the mouse is over it: `card_hover` on the **Results** block, `lift` (the card rises a little, with a shadow) or `outline` (a ring in `card_highlight_color`, dark grey unless set). Only on screens with a mouse; a touch screen leaves the card as it is.
+- **The card stands out while the mouse is over its pin**: `card_on_pin_hover` on the Results block, with the same two looks.
+- **The pin answers the mouse over its card**: `pin_on_card_hover` on the **Map** block, `grow` (a third larger, in front of the others) or `bounce`. A pin inside a group shows it only once the map is close enough to show the pin.
+- **The popup opens when the mouse rests on a pin**: `pin_hover_popup` `"yes"` on the Map block. It opens after a moment, without centring the map on the pin as a click does: the map moves only as far as the popup needs to show whole. It stays open as a click's would, and a quick sweep across the map opens nothing.
+
+`card_highlight_color` colours an outline only: the plugin refuses it unless `card_hover` or `card_on_pin_hover` is `outline`.
+
 ## Blocks
 
 ### Page — `crecs_search_page`
@@ -205,6 +216,8 @@ Options:
 - `cluster_max_zoom`: the zoom past which pins no longer group; unset, 13. Value: a whole number from 1 to 20.
 - `cluster_grid`: how near, in pixels on the screen, pins must be to join one group; unset, 40. Value: a whole number from 10 to 200.
 - `cluster_position`: where groups in the page's own look sit: `page`, held by their top-left corner with the number high on larger groups, as the page has always drawn them; `centred`, on their place with the number in the middle. Unset, `page`. Groups whose look the layout sets are always centred. Only when the person asks. Value: one of `page`, `centred`.
+- `pin_on_card_hover`: what a card's pin does while the mouse is over the card: `grow`, a third larger and in front of the others, or `bounce`; unset, nothing. Value: one of `grow`, `bounce`.
+- `pin_hover_popup`: the popup opens when the mouse rests on a pin a moment, as well as on a click, and the map moves only as far as the popup needs to show; unset, on a click only. Value: `"yes"`, or empty.
 
 ### Filters — `crecs_search_filters`
 
@@ -448,6 +461,9 @@ Options:
 - `grid_columns_mobile`: cards per row in the grid on phones; unset, 1. Value: a whole number from 1 to 2.
 - `grid_columns_without_map`: cards per row in the grid on computers while the map is hidden; unset, the page's own (5). Value: a whole number from 1 to 8.
 - `per_page`: how many results a page shows; unset, the settings screen decides. Value: a whole number from 1 to 100.
+- `card_hover`: how a card stands out while the mouse is over it, on screens with a mouse: `lift` rises it a little with a shadow, `outline` rings it in `card_highlight_color`; unset, it does not change. Value: one of `lift`, `outline`.
+- `card_on_pin_hover`: how a card stands out while the mouse is over its pin on the map, with the same looks as `card_hover`; unset, it does not change. Value: one of `lift`, `outline`.
+- `card_highlight_color`: the colour of a card's outline when it stands out; unset, dark grey (`#333333`); needs `card_hover` or `card_on_pin_hover` set to `outline`. Value: a colour: `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` or `transparent`.
 
 ### Discover-more links — `crecs_search_seo_links`
 

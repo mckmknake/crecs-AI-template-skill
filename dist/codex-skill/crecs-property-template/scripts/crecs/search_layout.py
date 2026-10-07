@@ -445,6 +445,13 @@ class Vocabulary:
                 out.append(_finding("E-SL-VALUE", node_id,
                                     '%s "%s" colours a pin the plugin draws: set "pin_shape" too.'
                                     % (block_type, name)))
+        # Stage 6: the highlight colour is an outline's.
+        if is_set("card_highlight_color") and not (
+                (is_set("card_hover") and settings["card_hover"] == "outline")
+                or (is_set("card_on_pin_hover") and settings["card_on_pin_hover"] == "outline")):
+            out.append(_finding("E-SL-VALUE", node_id,
+                                '%s "card_highlight_color" colours a card\'s outline: set "card_hover" or '
+                                '"card_on_pin_hover" to "outline".' % block_type))
         if is_set("cluster") and settings["cluster"] == "off":
             for name in ("cluster_color", "cluster_text_color", "cluster_size", "cluster_numbers",
                          "cluster_max_zoom", "cluster_grid", "cluster_position"):

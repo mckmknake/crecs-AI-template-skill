@@ -21,7 +21,7 @@ not the same as running the checks.
 
 Custom skills on claude.ai are per-user. There is no org-wide distribution and no
 central admin management, so each person uploads the zip themselves. Version:
-**1.3.5** — check it against the version your team is meant to be on.
+**1.3.6** — check it against the version your team is meant to be on.
 
 ## Conflicting documentation
 

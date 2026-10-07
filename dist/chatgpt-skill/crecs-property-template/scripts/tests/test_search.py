@@ -435,6 +435,27 @@ class Commands(unittest.TestCase):
         self.assertEqual(0, self.run_cli("unset", "--node", MAP, "--key", "type_pins")[0])
         self.assertNotIn("type_pins", self.settings(MAP))
 
+    # -- the mouse over cards and pins ------------------------------------------------
+
+    def test_the_mouse_over_effects_and_the_colour_only_for_an_outline(self):
+        before = self.raw()
+        code, _out, err = self.run_cli("set", "--node", RESULTS, "--key", "card_highlight_color",
+                                       "--value", "#0a3d62")
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn('"card_highlight_color" colours a card\'s outline', err)
+        self.assertEqual(before, self.raw())
+        for node, key, value in ((RESULTS, "card_hover", "lift"), (RESULTS, "card_on_pin_hover", "outline"),
+                                 (RESULTS, "card_highlight_color", "#0a3d62"),
+                                 (MAP, "pin_on_card_hover", "grow"), (MAP, "pin_hover_popup", "yes")):
+            self.assertEqual(0, self.run_cli("set", "--node", node, "--key", key, "--value", value)[0], key)
+        self.assertEqual({"card_hover": "lift", "card_on_pin_hover": "outline", "card_highlight_color": "#0a3d62"},
+                         self.settings(RESULTS))
+        self.assertEqual({"pin_on_card_hover": "grow", "pin_hover_popup": "yes"}, self.settings(MAP))
+        self.assertEqual([], self.vocab.check(self.doc()))
+        # "no" for a switch takes the setting away: the popup opens on a click only again.
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "pin_hover_popup", "--value", "no")[0])
+        self.assertNotIn("pin_hover_popup", self.settings(MAP))
+
     def test_nothing_about_the_groups_while_pins_do_not_group(self):
         self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "cluster_size", "--value", "40")[0])
         before = self.raw()

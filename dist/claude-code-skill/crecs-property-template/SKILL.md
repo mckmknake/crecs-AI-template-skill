@@ -870,11 +870,13 @@ python3 scripts/crecs_search.py show --file ./search.json
   library, such as their logo — and the pins' size; when they ask, a property type's pin
   too; whether nearby pins join into numbered groups, the groups' colours and size, their
   number shown or not, and how near, and up to what zoom, pins group.
+- **The mouse over cards and pins**: a card that stands out while the mouse is over it,
+  or over its pin; a pin that grows or bounces while the mouse is over its card; the
+  popup opening when the mouse rests on a pin.
 
-**Not yet**, so do not promise them and do not imitate them: mouse-over effects between
-the cards and the pins. Say these are planned, and note the request. Never fake one with
-something else — a filter "hidden" by painting it white still sits in the page, and the
-visitor still tabs into it.
+**Anything else**, do not promise it and do not imitate it: say the search page cannot do
+it yet, and note the request. Never fake one thing with another — a filter "hidden" by
+painting it white still sits in the page, and the visitor still tabs into it.
 
 **By design, never**: a filter the visitor cannot remove. What they can have is a
 starting value, below.
@@ -943,6 +945,29 @@ type's.**
   colour. To turn groups off, `unset` the other group settings first.
 - **To check**, look at the map in the preview and zoom in and out: groups split apart
   as you zoom in.
+
+### The mouse over cards and pins
+
+Four effects, each its own setting, none of them unless they ask: today a card and its pin
+do not answer the mouse.
+
+- **A card stands out while the mouse is over it**: `card_hover` on the results block,
+  `lift` (it rises a little, with a shadow) or `outline` (a ring around it).
+- **A card stands out while the mouse is over its pin**: `card_on_pin_hover` on the
+  results block, with the same two looks.
+- **The ring's colour**, `card_highlight_color`, `#rrggbb` (dark grey unless set), is for
+  an outline only: set one of the two to `outline` first, or the plugin refuses it.
+- **A card's pin answers the mouse over the card**: `pin_on_card_hover` on the map block,
+  `grow` (a third larger, in front of the others) or `bounce`. A pin inside a group shows
+  it only once the map is close enough to show the pin: say so if they try it zoomed out.
+- **The popup opens when the mouse rests on a pin**: `pin_hover_popup` `yes` on the map
+  block. It opens after a moment, without centring the map on the pin as a click does
+  (the map moves only as far as the popup needs to show), and stays open as after a
+  click; a quick sweep across the map opens nothing.
+- **Phones and tablets have no mouse**: there a tap does what it always did, and these
+  effects do not show. Say so when they ask.
+- **To check**, move the mouse over a card and over a pin in the preview, which is the
+  real page.
 
 ### Cards and the map popup
 
