@@ -28,6 +28,7 @@ Usage:
     crecs_preview.py watch [--interval 2.5]
     crecs_preview.py options        (a search page session: the site's types and brokers)
     crecs_preview.py media [--search logo]   (the site's images, newest first, with their numbers)
+    crecs_preview.py published      (a search page session: is the layout on display live?)
 
 Exit codes: 0 success, 2 refused by the server (conflict, invalid, rate limited),
 3 transport or configuration problem.
@@ -180,6 +181,32 @@ class Client:
 
 #: Where a person goes to start a preview, reissue a link or take a fresh session file.
 ADMIN_SCREEN = "WordPress -> CRE Cloud Solutions -> Template preview"
+
+
+def published_answer(state: dict) -> dict:
+    """Is the layout on display in a search page preview what the live page shows?
+
+    Asked after the person says they pressed Publish. Only the preview's own button
+    publishes, and a person can miss its answer, or an embedded browser can swallow the
+    question it asks, so the assistant checks rather than assumes. The preview's state
+    carries the live page's hash beside the ready revision's.
+    """
+    if state.get("kind") != "search" or "live_hash" not in state:
+        return {"live": None,
+                "say": "This is not a search page preview: a property template is imported "
+                       "into Elementor, not published."}
+    revision = state.get("ready_revision")
+    ready = state.get("ready_hash") or ""
+    if not ready:
+        return {"live": False, "revision": revision,
+                "say": "no: the preview has no layout ready yet, so there is nothing to publish."}
+    if ready == state.get("live_hash"):
+        return {"live": True, "revision": revision,
+                "say": f"yes: the live search page shows revision {revision}, the layout on "
+                       "display in the preview."}
+    return {"live": False, "revision": revision,
+            "say": f"no: the live search page does not show revision {revision}, the layout on "
+                   "display in the preview. It has not been published."}
 
 
 def _describe_html(raw: str) -> str:
@@ -384,6 +411,8 @@ def main(argv=None) -> int:
 
     for name in ("capabilities", "resume", "state", "undo", "close", "options"):
         sub.add_parser(name, parents=[common])
+    sub.add_parser("published", parents=[common],
+                   help="a search page session: is the layout on display what the live page shows?")
 
     co = sub.add_parser("connect", parents=[common],
                         help="save the session the Template preview screen shows, after checking it")
@@ -467,6 +496,13 @@ def main(argv=None) -> int:
             out = client.set_property(args.slug)
         elif args.cmd == "state":
             out = client.state()
+            if out.get("kind") == "search" and "live_hash" in out:
+                out["live"] = "yes" if published_answer(out)["live"] else "no"
+        elif args.cmd == "published":
+            out = published_answer(client.state())
+            if not args.json:
+                print(out["say"])
+                return 0
         elif args.cmd == "resume":
             out = client.resume()
         elif args.cmd == "undo":

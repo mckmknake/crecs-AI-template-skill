@@ -339,5 +339,7 @@ plugin would refuse is not written, and the command says why — the sort, for o
 go into the filters, because the Clear button would reset it.
 
 None of this changes the site. A person publishes, with the **Publish** button in the
-preview (administrators only). The Template preview screen shows what is live and puts
-any earlier layout back, or the original one.
+preview and then **Yes, publish** in the bar it shows (administrators only); a green bar
+answers. `crecs_preview.py published` tells the assistant whether the layout on display
+is live, so it checks instead of assuming. The Template preview screen shows what is
+live and puts any earlier layout back, or the original one.

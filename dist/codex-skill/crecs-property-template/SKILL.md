@@ -1049,6 +1049,7 @@ crecs_search.py unset | text | move | add-box | remove-box | hide | unhide | val
 crecs_preview.py apply --document ./search.json --session-file <file>
 crecs_preview.py options --session-file <file>          the site's property types and brokers
 crecs_preview.py media --session-file <file> [--search <words>]   the site's images, by number
+crecs_preview.py published --session-file <file>        is the layout on display live? (after Publish)
 ```
 
 Every command takes `--file ./search.json` (or set `$CRECS_SEARCH_FILE`) and `--help`.
@@ -1085,15 +1086,33 @@ layout"). `apply` is refused until the list is empty, so finish the repair first
 
 Nothing you do changes the live search page. When they like what they see, tell them:
 
-> When you're happy with it, press **Publish** in the preview window. From then on every
-> visitor sees this layout. If you change your mind, the Template preview screen in
-> WordPress can put any earlier layout back, or the original one.
+> When you're happy with it, press **Publish** in the preview window, then **Yes,
+> publish** in the bar that appears under it. A green bar then says it is published, and
+> from then on every visitor sees this layout. If you change your mind, the Template
+> preview screen in WordPress can put any earlier layout back, or the original one.
 
-Publishing is **theirs**: the preview takes it only from its own Publish button, never
-from a command, and only for a WordPress administrator. If the button is grey, either
-the layout on display is already live — the preview says "this is the live layout" — or
-their user is not an administrator; say which. Never open the live search page to show
-a change: it shows what is published, not the preview.
+Publishing is **theirs**: the preview takes it only from its own Publish button and the
+Yes in its bar, never from a command, and only for a WordPress administrator. Never
+press either one yourself, not even in a browser you can drive: the person decides when
+every visitor sees it. If the button is grey, either the layout on display is already
+live — the preview says "this is the live layout" — or their user is not an
+administrator; say which. Never open the live search page to show a change: it shows
+what is published, not the preview.
+
+**Check, never assume.** When they say they pressed Publish, or seem unsure whether it
+worked, ask the preview yourself:
+
+```
+python3 scripts/crecs_preview.py published --session-file <file>
+```
+
+- **yes** — it is live: tell them every visitor now sees it.
+- **no** — it is not: nothing was published. Walk them through it again — Publish, then
+  **Yes, publish** in the bar — and if the bar turns red, read them its reason in plain
+  words (for example, an ended preview needs a new one from Template preview).
+
+Never tell them it is live because they pressed the button; say so only after `published`
+answers yes.
 
 Everything in *Plain language* applies here too: no ids, setting names or codes in
 front of them — "the filter buttons", "the map", "the cards".

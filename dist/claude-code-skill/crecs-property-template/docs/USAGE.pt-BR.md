@@ -352,9 +352,11 @@ que ela aceita; `references/search/SEARCH-LAYOUT.md` explica todos os blocos. Um
 mudança que o plugin recusaria não é gravada, e o comando diz o motivo — a ordenação,
 por exemplo, não pode entrar nos filtros, porque o botão Limpar a zeraria.
 
-Nada disso muda o site. Quem publica é a pessoa, no botão **Publish** da prévia (só
-administradores). A tela Template preview mostra o layout no ar e devolve qualquer um
-dos anteriores, ou o original.
+Nada disso muda o site. Quem publica é a pessoa, no botão **Publish** da prévia e depois
+em **Yes, publish** na faixa que aparece (só administradores); uma faixa verde confirma.
+`crecs_preview.py published` diz ao assistente se o layout na tela está no ar, para ele
+conferir em vez de supor. A tela Template preview mostra o layout no ar e devolve
+qualquer um dos anteriores, ou o original.
 
 ## Regras que realmente quebram a página
 

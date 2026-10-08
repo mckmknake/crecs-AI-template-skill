@@ -643,6 +643,77 @@ class PreviewMedia(unittest.TestCase):
         self.assertNotIn("token-secret-123", out.getvalue() + err.getvalue())
 
 
+class PreviewPublished(unittest.TestCase):
+    """crecs_preview.py published: whether the layout on display is live, said plainly,
+    so the assistant checks after the person presses Publish instead of assuming."""
+
+    def run_against(self, state, argv):
+        seen = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen["path"] = self.path
+                body = json.dumps(state).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):  # keep the test output readable
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        folder = tempfile.mkdtemp(prefix="crecs-published-test-")
+        try:
+            session = os.path.join(folder, "session.json")
+            with open(session, "w", encoding="utf-8") as fh:
+                json.dump({"id": "ps_test", "token": "token-secret-123",
+                           "base": "http://127.0.0.1:%d" % server.server_port}, fh)
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = crecs_preview.main(argv + ["--session-file", session])
+        finally:
+            server.shutdown()
+            server.server_close()
+            shutil.rmtree(folder, ignore_errors=True)
+        self.assertEqual("/wp-json/crecs/preview/v1/sessions/ps_test/state", seen["path"])
+        self.assertNotIn("token-secret-123", out.getvalue() + err.getvalue())
+        return code, out.getvalue()
+
+    def search_state(self, live_hash):
+        return {"kind": "search", "head": 4, "ready_revision": 4, "ready_hash": "a" * 64,
+                "last_state": "ready", "live_hash": live_hash}
+
+    def test_live_when_the_live_page_has_the_ready_revisions_hash(self):
+        code, out = self.run_against(self.search_state("a" * 64), ["published"])
+        self.assertEqual(0, code)
+        self.assertEqual("yes: the live search page shows revision 4, the layout on display in "
+                         "the preview.\n", out)
+
+    def test_not_live_otherwise(self):
+        code, out = self.run_against(self.search_state("b" * 64), ["published"])
+        self.assertEqual(0, code)
+        self.assertTrue(out.startswith("no: the live search page does not show revision 4"), out)
+
+    def test_json_answers_with_a_boolean(self):
+        code, out = self.run_against(self.search_state("b" * 64), ["published", "--json"])
+        self.assertEqual(0, code)
+        self.assertIs(False, json.loads(out)["live"])
+
+    def test_a_property_session_is_not_published(self):
+        code, out = self.run_against({"kind": "property", "head": 1, "ready_revision": 1,
+                                      "ready_hash": "a" * 64}, ["published"])
+        self.assertEqual(0, code)
+        self.assertIn("not a search page preview", out)
+
+    def test_state_says_live_for_a_search_session(self):
+        code, out = self.run_against(self.search_state("a" * 64), ["state"])
+        self.assertEqual(0, code)
+        self.assertIn("\nlive                   yes\n", "\n" + out)
+
+
 class Reference(unittest.TestCase):
 
     def test_the_reference_is_the_plugins(self):
