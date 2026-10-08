@@ -857,7 +857,9 @@ python3 scripts/crecs_search.py show --file ./search.json
   price, the buttons — and in what order; the words of its labels and buttons; hiding
   the photo, the type badge on it, the highlight banner or the **Map It** button; the
   photo's proportion; how many cards per row in the grid, separately on computers with
-  the map, computers without it, tablets and phones; how many results a page shows.
+  the map, computers without it, tablets and phones; how many results a page shows;
+  and the space around the cards — the background, margin and padding of the area that
+  holds them, of each card's cell, and of the card itself.
 - **The popup a pin opens on the map**: what it shows and in what order, its width, the
   words of its button, its colours and fonts.
 - **The map itself**: where it opens and how close, how far visitors can zoom in and
@@ -986,6 +988,19 @@ do not answer the mouse.
   computers, ask whether phones and tablets should change too; left alone, they keep
   one card per row. The map's own button hides the map on computers, and the grid then
   has its own columns (`grid_columns_without_map`).
+- **Three boxes sit around a card**, all on the results block, outermost first:
+  - the area that holds every card (`#properties`): `area_*` for its background, borders
+    and corners; its margin and padding are the block's own, `_margin` and `_padding`;
+  - each card's cell (`.card`), the white slot a card sits in, in the list and the grid:
+    `card_cell_*`, with `card_cell_margin`;
+  - the card itself (`.card-box`), the framed box with the photo and the text: `card_*`,
+    with `card_margin`.
+
+  When they say "more space between the cards", a margin on the cell is the plain answer
+  (`card_cell_margin`, on the sides for the grid, top and bottom for rows); a margin on
+  the card leaves the cell's colour showing around it. The plugin takes the margins off
+  the boxes' sizes, so the grid keeps its columns and nothing runs off the side: never
+  shrink a width or change the columns yourself to make room.
 - **The popup is CRE Cloud's own until you choose its parts** (`popup_fields` on the
   map block). From then the plugin builds it from the card's data: the photo, with the
   category over it, on the left; the other parts on the right, in the list's order. Put

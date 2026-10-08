@@ -51,13 +51,14 @@ A device inherits from the larger one unless it sets its own value: desktop firs
 
 | property | kinds | value | devices |
 | --- | --- | --- | --- |
-| `background_color` | box | a colour: `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` or `transparent` | desktop value applies to all |
-| `border_style` | box | one of `none`, `solid`, `dashed`, `dotted`, `double` | desktop value applies to all |
-| `border_width` | box | `{"unit": u, "top": n, "right": n, "bottom": n, "left": n}`, u one of `px`, each n from 0 to 20 | desktop value applies to all |
-| `border_color` | box | a colour: `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` or `transparent` | desktop value applies to all |
-| `border_radius` | box | `{"unit": u, "top": n, "right": n, "bottom": n, "left": n}`, u one of `px`, `%`, each n from 0 to 200 | desktop value applies to all |
-| `box_shadow` | box | `{"horizontal": -50..50, "vertical": -50..50, "blur": 0..100, "spread": -50..50, "color": a colour}`, in pixels | desktop value applies to all |
+| `background_color` | box, surface | a colour: `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` or `transparent` | desktop value applies to all |
+| `border_style` | box, surface | one of `none`, `solid`, `dashed`, `dotted`, `double` | desktop value applies to all |
+| `border_width` | box, surface | `{"unit": u, "top": n, "right": n, "bottom": n, "left": n}`, u one of `px`, each n from 0 to 20 | desktop value applies to all |
+| `border_color` | box, surface | a colour: `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` or `transparent` | desktop value applies to all |
+| `border_radius` | box, surface | `{"unit": u, "top": n, "right": n, "bottom": n, "left": n}`, u one of `px`, `%`, each n from 0 to 200 | desktop value applies to all |
+| `box_shadow` | box, surface | `{"horizontal": -50..50, "vertical": -50..50, "blur": 0..100, "spread": -50..50, "color": a colour}`, in pixels | desktop value applies to all |
 | `padding` | box | `{"unit": u, "top": n, "right": n, "bottom": n, "left": n}`, u one of `px`, `em`, `%`, each n from 0 to 200 | all three |
+| `margin` | spacing | `{"unit": u, "top": n, "right": n, "bottom": n, "left": n}`, u one of `px`, `em`, `%`, each n from 0 to 200 | all three |
 | `color` | text, icon | a colour: `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` or `transparent` | desktop value applies to all |
 | `font_family` | text | one of the fonts the site offers (below) | desktop value applies to all |
 | `font_size` | text, icon | `{"unit": u, "size": n}`, u one of `px`, `em`, `rem`, n from 6 to 120 (at most 100 in % or vh) | all three |
@@ -106,6 +107,7 @@ The result cards and the popup a pin opens are set on the **Results** block (`cr
 - **The card's lines.** `card_fields` lists the card's text lines in the order they show, from `name`, `address`, `sub_type`, `available_sf`, `available_acres`, `land_sf`, `min_sf`, `max_sf`, `rates`, `buttons`. A line not in the list is not shown; a line whose value a property lacks shows nothing for that property, as today. The photo, the type badge on it, the highlight banner and the **Map It** button hide with `photo_hide`, `badge_hide`, `banner_hide` and `map_button_hide`.
 - **The card's words.** `text_sub_type`, `text_available_sf`, `text_available_acres`, `text_land_sf`, `text_min_sf`, `text_max_sf` are the labels before the values; `text_view_button` and `text_map_button` the two buttons.
 - **The photo** keeps one proportion with `photo_ratio` (width:height), in the list and in the grid, and the photos fill it.
+- **The boxes around a card**, outermost first: the area that holds the cards (`#properties`; `area_*` for its background, borders and corners, and the block's own `_margin` and `_padding` for its spacing), each card's cell in the list or the grid (`.card`; `card_cell_*`: background, borders, padding and `card_cell_margin`), and the card's own box (`.card-box`; `card_*`: background, borders, padding and `card_margin`). The page sizes all three in percent, so their sizes give their margins back: a cell's side margins come off its width, so the grid keeps its columns (its own or the layout's) and the list fits; a card's top and bottom margins come off its height in the grid, so a row stays even; the area's margins come off its height, and off its width when that is a share of the column (the page's own, or a `_width` in percent).
 - **The grid's columns** are set per device, and **none inherits** from another: `grid_columns` on computers while the map shows, `grid_columns_without_map` on computers while it is hidden, `grid_columns_tablet`, `grid_columns_mobile`. An unset one keeps the page's own: two (three on very wide screens) with the map, five without it, one on tablets and phones. `per_page` is how many results a page shows.
 - **The popup.** Until `popup_fields` is set, a pin opens the popup CRE Cloud sends, which the layout cannot change except its width (`popup_width`). Once it is set, the plugin builds the popup from the same data as the card: the photo, with the category over it, on the left, the other parts on the right in the list's order, from `photo`, `category`, `name`, `address`, `property_type`, `sub_type`, `available_sf`, `available_acres`, `land_sf`, `min_sf`, `max_sf`, `rates`, `view_button`. The size lines take the card's labels; the button's text is `text_popup_button`; the `popup`, `popup_name`, `popup_details`, `popup_category` and `popup_button` parts take colours, fonts and the rest like any other part.
 
@@ -429,7 +431,9 @@ Widget, required.
 
 Parts you can style:
 
-- `card` (box): `card_background_color`, `card_border_style`, `card_border_width`, `card_border_color`, `card_border_radius`, `card_box_shadow`, `card_padding`
+- `area` (surface): `area_background_color`, `area_border_style`, `area_border_width`, `area_border_color`, `area_border_radius`, `area_box_shadow`
+- `card_cell` (box, spacing): `card_cell_background_color`, `card_cell_border_style`, `card_cell_border_width`, `card_cell_border_color`, `card_cell_border_radius`, `card_cell_box_shadow`, `card_cell_padding`, `card_cell_margin`
+- `card` (box, spacing): `card_background_color`, `card_border_style`, `card_border_width`, `card_border_color`, `card_border_radius`, `card_box_shadow`, `card_padding`, `card_margin`
 - `name` (text): `name_color`, `name_font_family`, `name_font_size`, `name_font_weight`, `name_line_height`, `name_letter_spacing`, `name_text_transform`, `name_font_style`, `name_text_align`
 - `address` (text): `address_color`, `address_font_family`, `address_font_size`, `address_font_weight`, `address_line_height`, `address_letter_spacing`, `address_text_transform`, `address_font_style`, `address_text_align`
 - `details` (text): `details_color`, `details_font_family`, `details_font_size`, `details_font_weight`, `details_line_height`, `details_letter_spacing`, `details_text_transform`, `details_font_style`, `details_text_align`
