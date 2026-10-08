@@ -340,6 +340,9 @@ go into the filters, because the Clear button would reset it.
 
 None of this changes the site. A person publishes, with the **Publish** button in the
 preview and then **Yes, publish** in the bar it shows (administrators only); a green bar
-answers. `crecs_preview.py published` tells the assistant whether the layout on display
-is live, so it checks instead of assuming. The Template preview screen shows what is
-live and puts any earlier layout back, or the original one.
+answers. That works in the Claude app's browser too: there is no browser pop-up and no
+OK. Only a plugin older than 2.8.10 asks with the browser's own pop-up, which the Claude
+app's browser never shows; on such a site, publish from another browser.
+`crecs_preview.py published` tells the assistant whether the layout on display is live,
+so it checks instead of assuming. The Template preview screen shows what is live and
+puts any earlier layout back, or the original one.

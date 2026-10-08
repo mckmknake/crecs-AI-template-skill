@@ -1106,6 +1106,20 @@ Nothing you do changes the live search page. When they like what they see, tell 
 > from then on every visitor sees this layout. If you change your mind, the Template
 > preview screen in WordPress can put any earlier layout back, or the original one.
 
+Say it in their language, but keep the buttons' names as the screen shows them:
+**Publish**, then **Yes, publish** (or **Cancel**). **It works right where the preview
+already is, in the Claude app's browser too.** There is no browser pop-up and no **OK**
+button: the question is a bar inside the preview, under its toolbar, reading *Publish
+this layout?* So never tell them to open the preview in another browser, or to confirm
+with OK.
+
+Only a site whose plugin is older than 2.8.10 still asks with the browser's own pop-up,
+which the Claude app's browser never shows: Publish then seems to do nothing at all.
+You can tell before they press anything: the newer preview has a **Yes, publish** button
+in the page, hidden until Publish is pressed, and the older one has none. On such a
+site only, ask them to open the preview in their usual browser, press **Publish**
+there and then **OK**, and suggest that whoever looks after the site update the plugin.
+
 Publishing is **theirs**: the preview takes it only from its own Publish button and the
 Yes in its bar, never from a command, and only for a WordPress administrator. Never
 press either one yourself, not even in a browser you can drive: the person decides when
@@ -1124,7 +1138,9 @@ python3 scripts/crecs_preview.py published --session-file <file>
 - **yes** — it is live: tell them every visitor now sees it.
 - **no** — it is not: nothing was published. Walk them through it again — Publish, then
   **Yes, publish** in the bar — and if the bar turns red, read them its reason in plain
-  words (for example, an ended preview needs a new one from Template preview).
+  words (for example, an ended preview needs a new one from Template preview). If they
+  saw no bar at all, check the preview for the older plugin (above) before anything
+  else.
 
 Never tell them it is live because they pressed the button; say so only after `published`
 answers yes.

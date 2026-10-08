@@ -714,6 +714,34 @@ class PreviewPublished(unittest.TestCase):
         self.assertIn("\nlive                   yes\n", "\n" + out)
 
 
+class PublishingInstructions(unittest.TestCase):
+    """What SKILL.md tells the person about Publish. Testing 1.3.10, an assistant told a
+    client to open the preview in their usual browser and confirm with OK: the old
+    flow, which plugin 2.8.10 replaced with a bar in the page that the Claude app's
+    browser shows. OK belongs only to sites still on an older plugin."""
+
+    def setUp(self):
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "SKILL.md")
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        start = text.index("### Going live")
+        self.section = text[start:text.index("\n## ", start)]
+
+    def test_the_question_is_the_bar_in_the_page(self):
+        self.assertIn("**Yes, publish**", self.section)
+        self.assertIn("Claude app's browser too", self.section)
+        self.assertIn("no **OK**", self.section)
+        self.assertIn("never tell them to open the preview in another browser", self.section)
+
+    def test_ok_is_only_for_an_older_plugin(self):
+        for paragraph in self.section.split("\n\n"):
+            if "OK**" in paragraph and "no **OK**" not in paragraph:
+                self.assertIn("older than 2.8.10", paragraph, paragraph)
+
+    def test_it_is_checked_after_publish(self):
+        self.assertIn("crecs_preview.py published", self.section)
+
+
 class Reference(unittest.TestCase):
 
     def test_the_reference_is_the_plugins(self):

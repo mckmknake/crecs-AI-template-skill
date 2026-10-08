@@ -354,6 +354,9 @@ por exemplo, não pode entrar nos filtros, porque o botão Limpar a zeraria.
 
 Nada disso muda o site. Quem publica é a pessoa, no botão **Publish** da prévia e depois
 em **Yes, publish** na faixa que aparece (só administradores); uma faixa verde confirma.
+Funciona também no navegador do app do Claude: não há janela do navegador nem botão OK.
+Só um plugin anterior à 2.8.10 pergunta com a janela do próprio navegador, que o
+navegador do app do Claude nunca mostra; num site assim, publique por outro navegador.
 `crecs_preview.py published` diz ao assistente se o layout na tela está no ar, para ele
 conferir em vez de supor. A tela Template preview mostra o layout no ar e devolve
 qualquer um dos anteriores, ou o original.
