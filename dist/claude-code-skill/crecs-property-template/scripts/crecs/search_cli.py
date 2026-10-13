@@ -733,7 +733,24 @@ def build_parser():
     return parser
 
 
+def _utf8_streams():
+    """Print UTF-8 whatever the pipe's code page.
+
+    Windows gives a piped stdout its ANSI code page, which cannot print most of what a
+    layout's texts may hold (an emoji, an arrow), and the assistant reads the pipe as UTF-8.
+    The same as crecs_flyer.py's.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
+        if encoding != "utf8" and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv=None):
+    _utf8_streams()
     parser = build_parser()
     args = parser.parse_args(argv)
     if not args.command:

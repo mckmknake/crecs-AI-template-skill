@@ -26,13 +26,14 @@ copies that folder whole into every package, so a stray file there ships to ever
 
 ## Where this repository meets the plugin
 
-Exactly three places, all taking a path as an argument. Nothing is copied by hand.
+Exactly four places, all taking a path as an argument. Nothing is copied by hand.
 
 | Direction | What | Run from |
 | --- | --- | --- |
 | plugin → skill | `build-references.js` and `build-base-template.js` write `crecs-property-template/references/` and `assets/` | the plugin repository — they need its catalog, which needs WordPress and Elementor |
 | skill → plugin | `build-preview-index.js --skill <this repo>/crecs-property-template` regenerates the plugin's `includes/preview/data/crecs-preview-index.json` | the plugin repository |
 | plugin → skill | `tools/search-layout/build-search-reference.php --skill <this repo>/crecs-property-template` writes `references/search/` (the search page's vocabulary) and `scripts/tests/fixtures/search-vectors.json` (the plugin's own verdicts, which `tests/test_search.py` holds the Python checks to) | the plugin repository — plain PHP with mbstring, no WordPress |
+| plugin → skill | `tools/flyer-layout/build-flyer-reference.php --skill <this repo>/crecs-property-template` writes `references/flyer/flyer-layout.json` and `references/flyer/FLYER-LAYOUT.md` (the flyer's vocabulary, with the built-in designs) and `scripts/tests/fixtures/flyer-vectors.json` (the plugin's own verdicts, which `tests/test_flyer.py` holds `scripts/crecs/flyer_layout.py` to); `--check` writes nothing and exits 1 on drift | the plugin repository — plain PHP with mbstring, no WordPress |
 
 Consequences:
 
@@ -47,6 +48,11 @@ Consequences:
   generated; a block or control the skill lacks is added in the plugin and regenerated, never
   here. The plugin's preview suite case XR-02 runs the generator with `--check` when
   `CRECS_SKILL_ROOT` points here.
+- **The flyer's vocabulary is the plugin's too.** `references/flyer/` and the flyer vectors
+  are generated from the plugin's registry, controls and validator; a block, a control or a
+  rule the skill lacks is added in the plugin, regenerated, and ported to
+  `scripts/crecs/flyer_layout.py` until `tests/test_flyer.py` agrees with every vector. Check
+  for drift from the plugin repository with the generator's `--check`.
 - **The canonical hash is a contract too**: `canonical_hash()` in `scripts/crecs_preview.py`
   and `Crecs_Preview_Revisions::hash_document()` in the plugin must give the same bytes,
   non-ASCII text included (`tests/test_canonical_hash.py` and the plugin's F1-03 / F1-04

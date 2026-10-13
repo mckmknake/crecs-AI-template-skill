@@ -189,6 +189,19 @@ class Commands(unittest.TestCase):
         self.assertEqual(search_cli.EXIT_USAGE, code)
         self.assertIn("its texts: button", err)
 
+    def test_any_text_prints_through_a_pipe_that_is_not_utf8(self):
+        # Windows gives a piped stdout its ANSI code page (cp1252), which has no emoji:
+        # showing a person's text must not crash, and the assistant reads the pipe as UTF-8.
+        self.assertEqual(0, self.run_cli("text", "--node", PROPERTY_TYPE, "--slot", "button",
+                                         "--value", "Tipo \U0001F600 → agora")[0])
+        raw = io.BytesIO()
+        stream = io.TextIOWrapper(raw, encoding="cp1252", newline="\n")
+        with contextlib.redirect_stdout(stream), contextlib.redirect_stderr(io.StringIO()):
+            code = search_cli.main(["--file", self.path, "show", "--node", PROPERTY_TYPE])
+        stream.flush()
+        self.assertEqual(0, code)
+        self.assertIn('text button: "Tipo \U0001F600 → agora"', raw.getvalue().decode("utf-8"))
+
     def test_a_text_on_two_lines_is_refused(self):
         code, _out, err = self.run_cli("text", "--node", CLEAR, "--slot", "label",
                                        "--value", "Clear\nall")
