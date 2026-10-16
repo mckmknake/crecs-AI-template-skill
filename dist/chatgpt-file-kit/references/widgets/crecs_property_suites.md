@@ -7,7 +7,7 @@ Generated from the delivery-1 catalog. Source file: `includes/widgets/template_w
 | Relevance | **core** |
 | Why | Available-suite table. Commonly placed twice (desktop table + mobile stack) using Elementor responsive visibility. |
 | Elementor categories | `cre-cloud-solutions-property-data` |
-| Controls contributed by CRECS | 83 |
+| Controls contributed by CRECS | 84 |
 | Max instances per page | unlimited |
 
 ## Keys from older exports
@@ -36,6 +36,7 @@ These appear in the reference `PropertyPage.json` but are **not registered** by 
 | key | type | value shape | responsive | allowed values | default |
 | --- | --- | --- | --- | --- | --- |
 | `layout_type` | select | string | no | `list` `table` | `"list"` |
+| `suites_filter` | select | string | no | `vacant` `all` | `"vacant"` |
 | `show_label` | switcher | string ("" or "yes") | no | — | `"yes"` |
 
 #### style / card_body_section

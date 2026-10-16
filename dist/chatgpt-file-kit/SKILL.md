@@ -217,7 +217,7 @@ when they open Elementor themselves):
 | Rates [CRECS: Property Rates] | The asking rate or price. |
 | Media box [CRECS: Property Media Box] | One box with tabs for photos, map, street view, video and floor plans. |
 | Property fields [CRECS: Property Fields & Data] | Label-and-value cards for the details you track (zoning, year built, clear height…). |
-| Available suites [CRECS: Property Suites] | The table of available spaces — shown twice: a table on computers, a stacked list on phones. |
+| Available suites [CRECS: Property Suites] | The table of available spaces — shown twice: a table on computers, a stacked list on phones. It lists only the available suites, or every suite (`suites_filter`: `vacant` or `all`; it starts on the available ones). |
 | Photo gallery [CRECS: Property Photos] | A standalone gallery of the property's photos. |
 | Map [CRECS: Property Map] | A standalone map of the location. One per page. |
 | Confidential documents [CRECS: Property CA Docs] | Documents visitors unlock by signing the confidentiality agreement. One per page. |
