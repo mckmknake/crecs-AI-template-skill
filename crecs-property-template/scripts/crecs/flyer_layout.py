@@ -349,6 +349,15 @@ class Vocabulary:
                                     "The flyer has %d %s blocks (%s); it needs %d to %d."
                                     % (n, block["label"].translate(_ASCII_LOWER), block_type,
                                        count[0], count[1])))
+            # A block's registry `max` (today only the Logo block's: limits.max_logos). The
+            # label is printed as it is, not lowercased: the plugin words it so.
+            most = block.get("max")
+            if most is not None and n > most:
+                out.append(_finding(
+                    "E-FL-LIMIT", None,
+                    "The flyer has %d %s blocks (%s); it may have at most %d, because each one "
+                    "carries a whole image that every page of its band prints again, and so does "
+                    "each attachment frame." % (n, block["label"], block_type, most)))
 
         if state["nodes"] > self.limits["max_nodes"] or state["depth"] > self.limits["max_depth"]:
             out.append(_finding(

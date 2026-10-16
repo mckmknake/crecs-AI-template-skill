@@ -31,9 +31,10 @@ UNIT = ["tests.test_bindings", "tests.test_document", "tests.test_state",
         "tests.test_search", "tests.test_flyer", "tests.test_styles"]
 INTEGRATION = ["tests.test_cli", "tests.test_popup", "tests.test_delivery",
                "tests.test_transport_errors", "tests.test_connect",
-               "tests.test_bind_list", "tests.test_start_from_site"]
+               "tests.test_bind_list", "tests.test_start_from_site",
+               "tests.test_flyer_preview"]
 DOCS = ["tests.test_plain_language", "tests.test_opening_sequence",
-        "tests.test_guided_start"]
+        "tests.test_guided_start", "tests.test_flyer_section"]
 CONVERSATIONAL = ["tests.test_conversational"]
 
 

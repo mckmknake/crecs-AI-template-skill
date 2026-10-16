@@ -65,7 +65,10 @@ class Connect(unittest.TestCase):
         Handler.seen = []
         self.dir = tempfile.mkdtemp(prefix="crecs-connect-test-")
         self.sessions = os.path.join(self.dir, "sessions")
-        self.saved = os.path.join(self.sessions, "preview-127.0.0.1.json")
+        # One file per kind of preview: the search page's carries its kind in its name, and
+        # the property page's keeps the name it has always had.
+        self.saved = os.path.join(self.sessions, "preview-127.0.0.1-search.json")
+        self.saved_property = os.path.join(self.sessions, "preview-127.0.0.1.json")
 
     def tearDown(self):
         shutil.rmtree(self.dir, ignore_errors=True)
@@ -89,8 +92,8 @@ class Connect(unittest.TestCase):
             crecs_preview.sys.stdin = real_stdin
         return code, out.getvalue(), err.getvalue()
 
-    def stored(self):
-        with open(self.saved, encoding="utf-8") as fh:
+    def stored(self, path=None):
+        with open(path or self.saved, encoding="utf-8") as fh:
             return json.load(fh)
 
     # -- the ordinary path ---------------------------------------------------------
@@ -110,7 +113,7 @@ class Connect(unittest.TestCase):
         pasted = "~/.crecs/preview-127.0.0.1.json\n" + self.box(kind=None) + "\n\nOpen the preview\n"
         code, out, _err = self.run_connect(pasted)
         self.assertEqual(0, code)
-        self.assertNotIn("kind", self.stored())
+        self.assertNotIn("kind", self.stored(self.saved_property))
         self.assertIn("property page", out)
 
     def test_the_saved_file_is_what_the_other_commands_read(self):

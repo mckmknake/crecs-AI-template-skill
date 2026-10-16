@@ -278,7 +278,7 @@ reads that box from the page and saves it itself; the person never copies anythi
 python3 scripts/crecs_preview.py connect <<'EOF'
 (the box's text, as the page shows it)
 EOF
-# connected to example.com: the search page preview. Session saved in ~/.crecs/preview-example.com.json
+# connected to example.com: the search page preview. Session saved in ~/.crecs/preview-example.com-search.json
 ```
 
 When the preview later says the session expired or the token changed, **New link** on
@@ -291,7 +291,7 @@ that session in the same screen shows a new box: `connect` it the same way.
 P=scripts/crecs_preview.py
 B=scripts/crecs_search.py
 F=./search.json
-SESSION=~/.crecs/preview-example.com.json    # the session file connect saved
+SESSION=~/.crecs/preview-example.com-search.json    # the session file connect saved
 
 python3 $P current --out $F --session-file $SESSION    # what the preview shows now
 python3 $B show --file $F                                     # the tree, with ids

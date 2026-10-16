@@ -59,6 +59,23 @@ def sample_document():
     raise AssertionError("the vectors have no %r document" % SAMPLE)
 
 
+LOGO_BLOCK = "crecs_flyer_logo"
+# The plugin's message for more Logo blocks than it allows (Crecs_Flyer_Layout_Validate::check()).
+LOGO_LIMIT = ("The flyer has %d Logo blocks (crecs_flyer_logo); it may have at most 2, because each one "
+              "carries a whole image that every page of its band prints again, and so does each "
+              "attachment frame.")
+
+
+def with_logos(count):
+    """The design using every block, whose one Logo block is made `count` of them."""
+    doc = sample_document()
+    column = find(doc, PCOL3)[0]
+    for i in range(count - 1):
+        column["elements"].append({"id": "xlogo%03d" % i, "elType": "widget", "widgetType": LOGO_BLOCK,
+                                   "settings": {}, "elements": []})
+    return doc
+
+
 def vector_document(sample):
     """A document vector: PHP's own array, or JSON text PHP decoded (to keep {} and {"0": …})."""
     return json.loads(sample["json"]) if "json" in sample else copy.deepcopy(sample["document"])
@@ -123,6 +140,8 @@ class AgreesWithThePlugin(unittest.TestCase):
             "a page's room": ("E-FL-VALUE", r"^The flyer's padding and border, the header and footer heights .* 816 px a landscape page"),
             "a row's columns and gaps": ("E-FL-VALUE", r"^The [0-9]+ columns of this row, at least 40 px each"),
             "a row's widths": ("E-FL-VALUE", r"^The columns of this row"),
+            "the logo limit": ("E-FL-LIMIT", r"^The flyer has [0-9]+ Logo blocks \(crecs_flyer_logo\); it may have at most 2, because each one carries a whole image"),
+            "the block and depth limit": ("E-FL-LIMIT", r"^The document has [0-9]+ blocks nested [0-9]+ deep; a flyer may have at most 150 blocks, 8 deep\.$"),
         }
         for rule, (code, pattern) in rules.items():
             with self.subTest(rule=rule):
@@ -183,6 +202,39 @@ class AgreesWithThePlugin(unittest.TestCase):
         self.assertGreater(inside, 0)
         self.assertGreaterEqual(short - (heights + others), least, "the rule now accepts it")
         self.assertLess(short - (heights + inside + others), least, "the rule before refused it")
+
+    def test_the_logo_limit_is_the_plugins(self):
+        # `max` on the Logo block and limits.max_logos: the plugin's MAX_LOGOS, read from the
+        # reference like every other limit.
+        self.assertEqual(2, self.vocab.limits["max_logos"])
+        self.assertEqual(2, self.vocab.blocks[LOGO_BLOCK]["max"])
+        others = {t: b.get("max") for t, b in self.vocab.blocks.items() if t != LOGO_BLOCK}
+        self.assertEqual({}, {t: m for t, m in others.items() if m is not None},
+                         "only the Logo block has a count limit today")
+
+    def test_a_third_logo_gets_the_plugins_finding_word_for_word(self):
+        for count in (1, 2):
+            with self.subTest(logos=count):
+                self.assertEqual([], self.vocab.check(with_logos(count)))
+        for count in (3, 5):
+            with self.subTest(logos=count):
+                findings = self.vocab.check(with_logos(count))
+                self.assertEqual([{"level": "error", "code": "E-FL-LIMIT", "node": None,
+                                   "message": LOGO_LIMIT % count}], findings)
+                self.assertTrue(blocking(findings))
+
+    def test_the_logo_limit_is_told_beside_the_block_and_depth_limit(self):
+        # Both are E-FL-LIMIT with no node: a design over both gets both, the logo one first
+        # (the plugin checks the block types before it counts blocks and depth).
+        doc = with_logos(3)
+        column = find(doc, PCOL3)[0]
+        for i in range(self.vocab.limits["max_nodes"]):
+            column["elements"].append({"id": "xspc%04d" % i, "elType": "widget",
+                                       "widgetType": "crecs_flyer_spacer", "settings": {}, "elements": []})
+        findings = [f for f in self.vocab.check(doc) if f["code"] == "E-FL-LIMIT"]
+        self.assertEqual(2, len(findings))
+        self.assertEqual(LOGO_LIMIT % 3, findings[0]["message"])
+        self.assertRegex(findings[1]["message"], r"^The document has [0-9]+ blocks nested [0-9]+ deep; a flyer may have at most 150 blocks, 8 deep\.$")
 
     def test_the_design_using_every_block_is_valid_and_uses_every_block(self):
         doc = sample_document()
@@ -385,6 +437,53 @@ class Commands(unittest.TestCase):
         code, _out, err = self.run_cli("add", "--type", "photo", "--into", PCOL3, "--id", "photo002")
         self.assertEqual(flyer_cli.EXIT_USAGE, code)
         self.assertIn("photo002", err)
+
+    def logos(self):
+        return [n["id"] for n, *_ in flyer_layout.walk(self.doc()) if n["widgetType"] == LOGO_BLOCK]
+
+    def test_a_third_logo_is_refused_plainly_and_nothing_is_written(self):
+        code, out, _err = self.run_cli("--json", "add", "--type", "logo", "--into", PCOL3)
+        self.assertEqual(0, code)
+        self.assertEqual(2, len(self.logos()))
+        self.assertValid()
+        before = self.raw()
+        code, out, err = self.run_cli("add", "--type", "logo", "--into", PCOL3)
+        self.assertEqual(flyer_cli.EXIT_REFUSED, code)
+        self.assertEqual("", out)
+        self.assertIn("refused", err)
+        self.assertIn("nothing was written", err)
+        self.assertIn("E-FL-LIMIT", err)
+        self.assertIn(LOGO_LIMIT % 3, err)
+        self.assertEqual(before, self.raw())
+        self.assertEqual(2, len(self.logos()))
+
+    def test_a_logo_moved_or_changed_is_not_a_new_logo(self):
+        # Two logos are allowed; moving one, or setting its height, adds no finding.
+        self.assertEqual(0, self.run_cli("add", "--type", "logo", "--into", PCOL3, "--id", "logo0002")[0])
+        self.assertEqual(0, self.run_cli("move", "--node", "logo0002", "--into", PCOL1)[0])
+        self.assertEqual(0, self.run_cli("set", "--node", "logo0002", "--key", "height", "--value", "40")[0])
+        self.assertValid()
+
+    def test_a_design_over_the_logo_limit_is_mended_one_logo_at_a_time(self):
+        # A design that already has four is refused by the plugin; taking one out still has
+        # three, the same problem counting less, so it is written, with the warning that the
+        # preview still refuses. The second removal leaves it valid.
+        doc = with_logos(4)
+        self.write(doc)
+        self.assertEqual(flyer_cli.EXIT_REFUSED, self.run_cli("validate")[0])
+        code, _out, err = self.run_cli("remove", "--node", "xlogo000")
+        self.assertEqual(0, code)
+        self.assertIn("written, but the plugin would still refuse the flyer", err)
+        self.assertIn(LOGO_LIMIT % 3, err)
+        code, _out, err = self.run_cli("remove", "--node", "xlogo001")
+        self.assertEqual(0, code)
+        self.assertEqual("", err)
+        self.assertValid()
+        # And a design at the limit cannot be taken back over it by the same step.
+        self.write(with_logos(2))
+        code, _out, err = self.run_cli("add", "--type", "logo", "--into", PCOL1)
+        self.assertEqual(flyer_cli.EXIT_REFUSED, code)
+        self.assertIn(LOGO_LIMIT % 3, err)
 
     def test_a_block_by_its_short_name_or_its_label(self):
         for name in ("crecs_flyer_photo_grid", "photo_grid", "photo-grid", "Photo grid"):

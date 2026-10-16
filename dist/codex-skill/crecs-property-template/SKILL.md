@@ -1,6 +1,6 @@
 ---
 name: crecs-property-template
-description: Guide a CRE Cloud Solutions customer from signing in to their WordPress site to a designed property page (importable Elementor JSON) and property search page (previewed, then published).
+description: Guide a CRE Cloud Solutions customer from signing in to WordPress to a designed property page (importable Elementor JSON), a search page and a flyer, each previewed first.
 license: proprietary
 ---
 
@@ -14,6 +14,10 @@ the data layer stays exactly as it is.
 The same goes for the **search page** — the page that lists all their properties, with
 the map and the filters. It is not an Elementor template, so it has its own tool and its
 own section: *The search page*, below.
+
+So does the **flyer** — the PDF a visitor downloads from a property. It is drawn from a
+design of its own, previewed exactly as CRE Cloud will print it, with its own tool and its
+own section: *The flyer*, below.
 
 ## The customer
 
@@ -117,16 +121,18 @@ back — do not stall, and do not pretend to have looked at anything.
 
 If what they asked for is the search page — the list of properties with the map and the
 filters — say so in your welcome instead of the property-page line, and take the search
-page at step 3.
+page at step 3. The same for the flyer — the PDF a visitor downloads from a property:
+welcome them to designing it, and take the flyer at step 3.
 
 **3. Open that site's preview yourself.** Tell them you are about to open a private
 preview, where they will see every change before anything goes live, and go ahead on
 their OK. In the browser where they signed in, open
 **CRE Cloud Solutions → Template preview** and start it: **Start preview** under
 *Preview the property page* (the template that serves property pages now is already
-chosen; leave *Example property* empty, step 4 picks one), or
-**Start search page preview**. For the search page, everything after this step is in
-*The search page* below, not in the guided design start.
+chosen; leave *Example property* empty, step 4 picks one),
+**Start search page preview**, or **Start flyer preview**. For the search page and the
+flyer, everything after this step is in *The search page* and *The flyer* below, not in
+the guided design start.
 
 The screen then shows an **Open the preview** button and, in a box, the session file:
 the key to this preview. Read the box's text from the page and save it yourself:
@@ -137,9 +143,16 @@ python3 scripts/crecs_preview.py connect <<'EOF'
 EOF
 ```
 
-`connect` checks the session with the site, saves it as `~/.crecs/preview-<site>.json`
-and prints that path and which page it previews; pass the path as `--session-file` from
-then on. For the property page, when the template list marked one as *currently serving
+`connect` checks the session with the site, saves it under `~/.crecs/` and prints that
+path and which page it previews; pass the path as `--session-file` from then on. A site
+can have all three previews open at once, so each kind has a file of its own: the
+property page's is `preview-<site>.json`, the search page's `preview-<site>-search.json`
+and the flyer's `preview-<site>-flyer.json`. (An older search page file kept under the
+property page's name still works, and `connect` moves it to its new name.) With no
+`--session-file`, a command that belongs to one kind (`pdf` is the flyer's) takes that
+kind's file, any other takes `--kind property`, `--kind search` or `--kind flyer`, and a
+command that finds more than one file and no kind asks instead of guessing. For the
+property page, when the template list marked one as *currently serving
 property pages*, keep a copy of that page now, before anything is applied to the
 preview: `crecs_preview.py current --out ./current-page.json --session-file <file>`.
 Step 9 can start from it, and it is their page as it was. Then press
@@ -1148,6 +1161,282 @@ answers yes.
 Everything in *Plain language* applies here too: no ids, setting names or codes in
 front of them — "the filter buttons", "the map", "the cards".
 
+## The flyer
+
+The flyer is the PDF a visitor downloads from a property: pages CRE Cloud prints for that
+property, with its photos, facts, available suites and brokers. It is designed through
+the same preview as the other pages and is not an Elementor page either: the plugin
+draws it from a **flyer layout document**, a tree of the flyer's blocks that says what
+each page holds, where it sits and how it looks. `scripts/crecs_flyer.py` edits that
+document. Before your first edit, read `references/flyer/FLYER-LAYOUT.md`: every block,
+every setting it takes and every value it accepts, generated from the plugin. Never guess
+a setting name; `controls --node <id>` lists the real ones.
+
+### What a flyer is
+
+- **One design serves the whole site.** Every property's flyer is made from the same
+  design, filled in with that property's own photos, address, sizes, suites and brokers.
+  That is the default, and what to offer. A design for **one property only** is possible
+  too, but saving that choice comes with the Send step, which is not there yet (see
+  *Sending the flyer*): if they ask, say so, and design for the whole site meanwhile.
+- **The designed pages** are 1 to 4 pages of US Letter paper, all landscape or all
+  portrait, as they choose. Each has a **header** band at its top and a **footer** band at
+  its bottom; a page can hide either.
+- **Attachment pages come after the designed ones and are not designed here.** CRE Cloud
+  adds the property's attachments (floor plans, site plans, the company's own forms)
+  behind the designed pages. They belong to the property and the company in CRE Cloud;
+  the design only decides the header and footer that frame some of them (*Things to
+  know*).
+- **It is printed paper, not a web page**: no screen sizes, no mouse-over, nothing moves.
+
+### Start
+
+They start it, in the browser where they signed in, as in step 3 of *Start here*: **CRE
+Cloud Solutions → Template preview → Start flyer preview**, on their OK. The screen asks
+for a property (the flyer is always shown with one real property) and for what to start
+from: the site's own flyer design if it has one, or a ready-made one, wide (landscape) or
+tall (portrait). Do not ask them for a property's address on the website: pick a
+published one yourself as in step 4, or take the one they name, and suggest landscape
+first. Say in one sentence what you are starting:
+
+> I'm going to open a private preview of your flyer, using one of your properties. You'll
+> see the flyer exactly as it will print, and nothing changes for your visitors.
+
+**Opening and using a flyer preview needs a site administrator.** The flyer is printed by
+CRE Cloud's shared printer, so the plugin lets only a WordPress administrator start a flyer
+preview and use it (the other previews are open to anyone who may edit templates). Settle
+this before you start: the Template preview screen of someone who is not one offers no
+**Start flyer preview** button, only a line saying that an administrator has to start it;
+and every command on a flyer preview they somehow hold answers that only a site
+administrator can use it. When the person is not an administrator, say so plainly and ask
+them to sign in to their website with an administrator account (or to sit with the site's
+administrator), then start again; do not try another way round:
+
+> The flyer preview can only be opened by a site administrator, because it uses CRE
+> Cloud's shared printer. Could you sign in to your website with an administrator account?
+> Then we can carry on from there.
+
+There can be at most three flyer previews open at once for one person. When the screen or
+a command says there are too many, close one that is finished in the same Template preview
+screen, then start the new one. And the property has to be one the site lists: when it
+answers that a property is not on the site's list, choose another from the site's own
+properties.
+
+The screen then shows the box, as for the other previews. Save it with
+`crecs_preview.py connect` (step 3; the flyer's file is `preview-<site>-flyer.json`),
+press **Open the preview**, and say what they are looking at: the flyer for that
+property, with **Pages** (the designed pages), **Attachment frames** and **Exact PDF** (the
+flyer exactly as visitors will download it) above it, and a list at the top to look at
+another property. Then fetch the design, look at it, and give a short tour page by page:
+
+```
+python3 scripts/crecs_preview.py current --out ./flyer.json --session-file <file>
+python3 scripts/crecs_flyer.py show --file ./flyer.json
+```
+
+A ready-made design has: a header band (the type and for sale or lease labels, the
+headline, the logo, the name and address); a first page (the sizes and price, highlights
+and the map beside the main photo, the description and the brokers); a second page (more
+photos and the table of available suites); and a footer band (the disclaimer and the
+company's name, phone and email). `crecs_flyer.py new --from landscape-classic` (or
+`portrait-classic`) starts a file from one without the preview.
+
+### What they can ask for
+
+- **Pages and orientation**: landscape or portrait; up to 4 designed pages; a page that
+  hides its header or footer to give the room to its body.
+- **Header and footer**: their height, colours and what they hold.
+- **What goes on a page**: the property's name, headline and address (on one line or two);
+  labels for its type, category, sub type or for sale or lease; one photo, or a grid of
+  photos; the facts (sizes, available space, year built, cap rate, rates… which ones, in
+  what order, in how many columns); highlights; the description, up to a length; the table
+  of available suites (which columns, up to 10 rows); the contacts, meaning the brokers on
+  the listing (photo, name, title, phone, mobile, email; stacked or side by side); the
+  map; the logo (the site's own, or an image from their media library; at most two logos
+  in the whole design, see *What it can never do*); the company's
+  name, phone and email; their own text; the disclaimer; a dividing line; blank space.
+- **Arrangement**: rows and columns, each column's width as a share of its row, the space
+  between them, where blocks sit in a taller row, fixed heights.
+- **Look**: colours, fonts, sizes, weights, capitals, spacing, alignment, borders, corners,
+  backgrounds and padding, for each block and for the whole page. Write a colour as a
+  code such as `#0a3d62` — turn "navy" into one yourself — and a see-through colour as
+  `rgba()`.
+- **Words**: the labels in the facts, the suites table and the contacts; their own text;
+  the disclaimer.
+- **Fonts: only the nine the flyer printer has** — Lato, DejaVu Sans, DejaVu Serif, Nimbus
+  Sans L, Nimbus Roman No9 L, URW Gothic L, URW Bookman L, URW Palladio L and Century
+  Schoolbook L. Arial is not one of them, and neither is any other font. When they ask for
+  Arial, a Google font or their website's font, say plainly that the printer has these nine
+  and nothing else can be loaded, and offer the nearest: Nimbus Sans L is the closest to
+  Arial, Nimbus Roman No9 L to Times, URW Palladio L to Palatino. Show it on a page before
+  they decide.
+
+### What it can never do
+
+- **No HTML or CSS of their own**, no scripts, nothing embedded: the blocks print only the
+  property's own data, and every text is plain text. Do not offer "just a little CSS".
+- **No font the printer lacks**: the nine above. A font on their website is not on the
+  printer.
+- **No effects the printer cannot print**: it is an old one. The flyer has no shadows,
+  gradients, animation, text laid over a photo or rotated blocks, and nothing in the design
+  can ask for them. A colour with see-through written as `#rrggbbaa` is ignored by it;
+  `rgba()` works.
+- **No SVG logo**: only PNG, JPEG and GIF pictures print.
+- **At most two logos in a design, each a picture of about 300 KB or less.** Every logo is
+  printed again on each page of its band and inside both attachment frames, so more than two
+  would make what is sent to CRE Cloud too large: the design is refused when it has a third
+  (`add` refuses it too). A picture over about 300 KB, or over 3000 × 3000 pixels, is left
+  out of the preview and of the PDF: where the logo should be, the page shows nothing, and
+  nothing else says so. When a logo is missing on a page picture, look for this first (*Things
+  to know*) and ask them for a smaller picture.
+
+**Anything else**, do not promise it and do not imitate it: say the flyer cannot do it yet
+and note the request. Never fake one thing with another — a white block laid over text to
+"hide" it, a tiny font to squeeze a page's content in.
+
+### The loop
+
+```
+crecs_flyer.py show                     the tree, with each block's id
+crecs_flyer.py show --node <id>         one block: its settings, its parts, its texts
+crecs_flyer.py controls --node <id> --match color     the settings it takes
+crecs_flyer.py set --node <id> --key <setting> --value <value>
+crecs_flyer.py unset | text | move | add | remove | orientation | validate
+crecs_preview.py apply --document ./flyer.json --session-file <file>
+crecs_preview.py pdf --session-file <file>     [--revision N] [--dpi 96] [--out-dir DIR] [--with-pdf] [--fresh]
+crecs_preview.py property <slug> --session-file <file>     look at another property
+crecs_preview.py undo --session-file <file>
+```
+
+Every command takes `--file ./flyer.json` (or set `$CRECS_FLYER_FILE`) and `--help`. Values
+are JSON or the usual shorthand: `#0a3d62`, `24px`, `8px 16px`, `320`, `auto`, and
+`total_sf, rates` for a list of parts. Each change is checked against the plugin's own
+rules first, and one the plugin would refuse is not written — the command says why. Sizes
+must add up: a page's body keeps at least 100 pixels between the bands, a block with a
+fixed height keeps room for what it holds, and a row's columns must fit the narrowest
+page. A refused size is not a fault: tell them in plain words ("that would leave no room
+on the page") and offer the nearest.
+
+After a change, or a few that belong together:
+
+1. **`validate`, then `apply`**: the preview reloads the design.
+2. **Make the exact PDF with `pdf`.** It asks CRE Cloud's printer for the PDF visitors
+   will download, which takes a few seconds (when the printer is busy the command says so,
+   waits and asks again by itself), then saves a picture of every page as `page-1.png`,
+   `page-2.png` and so on in a folder it names. It lists the pages in order, each as a
+   designed page or as an attachment by name, and CRE Cloud's warnings in words.
+   `--with-pdf` saves the PDF itself too, `--revision` makes an earlier revision's, and
+   `--dpi` (72 to 150) makes sharper pictures for small print.
+
+   **When to ask for a fresh PDF.** The site keeps the PDF of a design for ten minutes and
+   gives the same one back, so looking twice costs nothing. A change to the design is a new
+   revision and always makes a new PDF, so after `apply` you need nothing more. What the
+   design cannot see is a change inside CRE Cloud itself: a new attachment, an attachment
+   taken off, a property's data or photos edited. When the person says something like that
+   changed, add `--fresh`: it makes the PDF again and reads the property anew. Do not use
+   it otherwise, and not for the first PDF you make in a conversation: every PDF is made by
+   CRE Cloud's shared printer, which allows each person only so many an hour, so group
+   your changes before you ask for one. The summary says how old the PDF is when it is over
+   a minute: pass it on in plain words ("this was made 7 minutes ago; I can make a new one
+   if you changed something in CRE Cloud"). If you asked for `--fresh` and the summary says
+   the site did not make a new PDF, the site's plugin is an older version: do not call that
+   PDF new.
+
+   **When the hour's allowance is used up**, the command says so at once and how long to
+   wait: do not run it again and again, and do not wait for it. Tell the person in plain
+   words, keep working on the design, and let them look at it in the preview window (the
+   **Pages** view) until the time has passed:
+
+   > I can't make another exact copy of the flyer for about 20 minutes: CRE Cloud's printer
+   > is shared, and it only makes so many an hour for each person. The design itself is
+   > safe, and you can keep looking at the pages in the preview window meanwhile.
+
+   A busy printer is different: the command waits and asks again by itself.
+3. **Look at the pages yourself.** Open each page picture with your image-reading tool and
+   check it before you say anything about it:
+   - any warning that something did not fit (an overflow): a block cut off at the foot of
+     a page, or an extra page nobody designed. Make the content smaller, move it, or give
+     it a page of its own (up to 4);
+   - blocks that show nothing: a photo the property does not have, facts it lacks, a map
+     that is missing, a logo whose picture is too big (see *Things to know*);
+   - text too small to read, colours that do not stand out from each other, a font that
+     is not the one asked for;
+   - the header and footer on every designed page that should have them;
+   - the attachment pages: each framed by the design's header and footer where it should
+     be, and in its own orientation.
+4. **Check another property** when the design depends on the data — long descriptions,
+   many suites or brokers, few photos, a hidden address: `property <slug>` shows it, then
+   `pdf` again. One design serves every property, so it has to hold for the long cases,
+   not only for the example.
+5. **Tell them in plain words** what is different on the flyer and what you checked, and
+   never tell them it is right before you have opened the pictures. The summary alone does
+   not show a cut-off line.
+
+> I made the first page's photo taller and moved the map under the facts. I opened every
+> page of the printed flyer to check it: the second page no longer runs over, and the
+> brokers fit. You can see the same pages in the preview window under "Exact PDF".
+
+**Undo** is `crecs_preview.py undo --session-file <file>`; fetch `current` again before the
+next edit, because your file is a step ahead.
+
+### Things to know
+
+- **A hidden address.** A property marked "do not display address" shows only its city,
+  state and zip on the flyer, never the street, and has no map: the map block shows
+  nothing, on purpose. The design has to look right without them; check one such property
+  if the site has any.
+- **Attachment pages keep their own orientation.** The designed pages share one; an
+  attachment is printed as it is, so a landscape floor plan stays landscape inside a
+  portrait flyer. The ones CRE Cloud places inside the layout sit in a **frame** made from
+  the design's own header and footer, one frame for portrait attachments and one for
+  landscape ones (the preview's **Attachment frames** button shows both), so the header
+  and footer must look right in both. Full-page and large-sheet attachments are added as
+  they are, with no header or footer.
+- **The order**: the designed pages first, then the property's attachments in the order
+  CRE Cloud lists them, and the company-wide ones, such as the IABS form, at the end. Which
+  attachments there are, in what order, and whether one is left out of the flyer are set in
+  CRE Cloud, not in the design: when one is missing or a warning says one was left out,
+  say so plainly and that it is changed there.
+- **What does not fit is cut off.** A page's body has a fixed height. The warnings and your
+  own look at the pages are how an overflow is found.
+- **A photo block shows one of the property's photos by its place in the list**: a property
+  with fewer photos shows nothing there.
+- **A logo's picture has to be small enough, or it is left out.** A logo prints only as a
+  PNG, JPEG or GIF of about 300 KB or less and at most 3000 × 3000 pixels, taken from the
+  media library (the site's own logo is the one set under Appearance → Customize → Site
+  Identity). Anything else — a bigger file, an SVG, a picture no longer in the library, a
+  site with no logo set — is left out of the preview and of the PDF, and nothing in the
+  summary says so: the page just shows nothing there. When a page picture lacks a logo the
+  design has, tell the person, and ask them to upload a smaller picture to their media
+  library (a PNG or JPEG, cropped close to the logo and saved at a normal size). Then
+  `crecs_preview.py media --search <words>` finds its number, and you point the logo at
+  that picture. The design has at most two logos; if the site still answers that the design
+  carries too much image data, a logo is still too big: use a smaller one.
+- **The preview lasts about a day.** When it stops answering, follow *When the preview
+  stops answering* and `apply` your last saved design to the new one: nothing of the design
+  is lost, because the file is yours.
+
+### Sending the flyer
+
+Sending a flyer to CRE Cloud is **not available yet** in this version. Nothing you do
+changes the flyer visitors download: they keep getting the flyer they get today. When
+sending arrives it will be a button the person presses in the preview window, like
+**Publish** for the search page and like it theirs alone: never send, publish or export a
+flyer yourself, and never try. If they ask for it to go live, say that it is not available
+yet, that it will be a button for them in the preview window, that their design is safe
+in the preview meanwhile, and that you can keep working on it:
+
+> Your flyer design is ready to look at in the preview window. Sending it to CRE Cloud is
+> not available yet in this version: when it is, it will be a button you press there
+> yourself. Until then your visitors keep getting the flyer they get today, and nothing on
+> your site has changed.
+
+Never open a property's flyer download to show a change: it is the flyer visitors get
+today, not the preview.
+
+Everything in *Plain language* applies here too: no ids, setting names or codes in front
+of them — "the header", "the photo", "the second page", "the map".
+
 ## The rules that actually break things
 
 ### The loader must be first
@@ -1316,9 +1605,12 @@ assets/target-profile.example.json    copy and fill in per client
 assets/fixtures/                      extra documents, and negative cases
 references/search/SEARCH-LAYOUT.md    the search page: blocks, settings, values
 references/search/search-layout.json  the same, for the scripts (from the plugin)
+references/flyer/FLYER-LAYOUT.md      the flyer: blocks, settings, values, fonts, built-in designs
+references/flyer/flyer-layout.json    the same, for the scripts (from the plugin)
 scripts/crecs_template.py             the CLI
 scripts/crecs_search.py               the search page's CLI
-scripts/crecs_preview.py              the preview: current, apply, undo, state
+scripts/crecs_flyer.py                the flyer's CLI
+scripts/crecs_preview.py              the preview: connect, current, apply, undo, state, pdf (a flyer's exact PDF as page pictures)
 scripts/tests/run_tests.py            offline test suite
 docs/                                 install and usage guides
 ```

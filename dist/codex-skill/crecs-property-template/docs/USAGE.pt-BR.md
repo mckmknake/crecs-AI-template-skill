@@ -292,7 +292,7 @@ assistente lê essa caixa na própria página e salva sozinho; a pessoa não cop
 python3 scripts/crecs_preview.py connect <<'EOF'
 (o texto da caixa, como a página mostra)
 EOF
-# connected to example.com: the search page preview. Session saved in ~/.crecs/preview-example.com.json
+# connected to example.com: the search page preview. Session saved in ~/.crecs/preview-example.com-search.json
 ```
 
 Se depois a prévia disser que a sessão expirou ou que o token mudou, **New link** nessa
@@ -305,7 +305,7 @@ sessão, na mesma tela, mostra uma caixa nova: é só fazer o `connect` dela do 
 P=scripts/crecs_preview.py
 B=scripts/crecs_search.py
 F=./busca.json
-SESSION=~/.crecs/preview-example.com.json    # o arquivo de sessão que o connect salvou
+SESSION=~/.crecs/preview-example.com-search.json    # o arquivo de sessão que o connect salvou
 
 python3 $P current --out $F --session-file $SESSION    # o que a prévia mostra agora
 python3 $B show --file $F                                    # a árvore, com os ids

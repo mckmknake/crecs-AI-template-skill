@@ -23,6 +23,8 @@ A document holds exactly `type`, `version`, `title` (optional) and `content`, an
 
 Limits: at most 150 blocks, nested at most 8 deep (the flyer counts as 1, a page or band 2, its row 3, its column 4, a row inside that column 5, its column 6, a row inside that 7, its column 8). So a column can hold a row whose columns hold blocks, or another row; that second nested row's columns are at the limit and must stay empty.
 
+A design has at most 2 **Logo** blocks (`crecs_flyer_logo`): each carries a whole embedded image, and a band prints it again on every page and in both attachment frames, so more would make the request to CRE Cloud too large. The error is E-FL-LIMIT.
+
 ## The page
 
 One page box is exactly one US Letter page: landscape is 1056 x 816 pixels, portrait 816 x 1056 (96 pixels to the inch). The flyer's `orientation` sets the designed pages'; each attachment page keeps its own orientation.
@@ -51,7 +53,7 @@ The preview and sending refuse a document with any of these.
 | `E-FL-REQUIRED` | the header band or the footer band is missing |
 | `E-FL-ONCE` | a block that appears once (the flyer, the header band, the footer band) appears more often |
 | `E-FL-PAGES` | no page, or more than 4 |
-| `E-FL-LIMIT` | more than 150 blocks, or nested more than 8 deep |
+| `E-FL-LIMIT` | more than 150 blocks, or nested more than 8 deep, or more than 2 logo blocks (each carries a whole image, which every page of its band prints again, and so does each attachment frame) |
 | `E-FL-NODE` | a block without its `id`, `elType`, `widgetType`, `settings` and `elements`, or with any other key |
 | `E-FL-ID` | an id that is not 4 to 16 letters or digits, or that two blocks share |
 | `E-FL-BLOCK` | a `widgetType` the flyer does not have |
