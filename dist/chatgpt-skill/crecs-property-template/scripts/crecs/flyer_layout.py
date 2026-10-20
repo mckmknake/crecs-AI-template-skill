@@ -444,8 +444,9 @@ class Vocabulary:
     def _check_together(self, block_type, node_id, node, elements, out):
         """Rules between settings: a fixed height must keep room once the padding and border
         it holds come out of it; a row's columns must fit in it, and in the narrowest page
-        with its gaps; a logo's image goes with its source. A setting that is itself
-        refused, or not set, counts as its default (padding and border as none)."""
+        with its gaps; a logo's image goes with its source; a map's boundaries need a
+        satellite or hybrid map. A setting that is itself refused, or not set, counts as its
+        default (padding and border as none)."""
         self._check_heights(block_type, node_id, node, out)
 
         if block_type == "crecs_flyer_row":
@@ -494,6 +495,18 @@ class Vocabulary:
                     "E-FL-VALUE", node_id,
                     '%s "media_id" is used only when "source" is "media"; the logo now shows the '
                     "site logo." % block_type))
+            return
+
+        # CRE Cloud draws a property's boundaries only on an aerial picture, and refuses a
+        # road map that asks for them, so the document must not (the plugin's own rule).
+        if block_type == "crecs_flyer_map":
+            kind = self.option(node, "map_type")
+            if self.option(node, "boundaries") == "on" and kind not in ("satellite", "hybrid"):
+                out.append(_finding(
+                    "E-FL-VALUE", node_id,
+                    '%s "boundaries" is "on", which only a satellite or hybrid map can show; this '
+                    'map is a %s map (its "map_type"), so set "map_type" to "satellite" or '
+                    '"hybrid", or "boundaries" to "off".' % (block_type, kind)))
 
     def _check_heights(self, block_type, node_id, node, out):
         """Each fixed height (an option naming in `sizes` the part it sizes) keeps at least

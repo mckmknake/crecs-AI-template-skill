@@ -19,8 +19,8 @@ from standard input or a file, after checking it with the site. This script neve
 for a password and never prints a token.
 
 Which session a command uses: --session-file wins; then --kind (property, search or
-flyer); then the command's own kind (`pdf` is a flyer's, `options` and `published` are
-the search page's); otherwise the one saved session that fits, and the command says which
+flyer); then the command's own kind (`pdf` and `sent` are a flyer's, `options` and
+`published` are the search page's); otherwise the one saved session that fits, and the command says which
 it took. An older ~/.crecs/preview-<host>.json that holds a search page session is still
 read as the search page's, and `connect` moves it to its new name.
 
@@ -43,6 +43,9 @@ Usage:
                                      picture of every page the assistant can open; --fresh makes it
                                      again whatever the site stored, with the property asked for anew:
                                      for when something changed in CRE Cloud)
+    crecs_preview.py sent           (a flyer session: has the flyer been sent to CRE Cloud, and has CRE
+                                     Cloud made it? A question only: sending the flyer is the Send
+                                     button in the preview window, which only a person presses)
 
 Exit codes: 0 success, 2 refused by the server (conflict, invalid, rate limited, busy),
 3 transport or configuration problem (including a session that cannot be found or chosen).
@@ -80,7 +83,7 @@ KIND_START = {"property": "Start preview", "search": "Start search page preview"
 
 #: The kind a command is about, for the commands that are about one. The others work on
 #: whichever session they are given.
-NATURAL_KIND = {"pdf": "flyer", "options": "search", "published": "search"}
+NATURAL_KIND = {"pdf": "flyer", "sent": "flyer", "options": "search", "published": "search"}
 
 #: The exact PDF: how often a busy or rate-limited engine is asked again, and how long to
 #: wait when it says nothing or asks for more than is reasonable.
@@ -238,6 +241,13 @@ class Client:
         query = urllib.parse.urlencode({"revision": revision, "include": include})
         return self._call("GET", self._session_path("/flyer-pdf") + "?" + query)
 
+    def flyer_status(self) -> dict:
+        """Whether CRE Cloud has a designed flyer for the property on display, how its making
+        went, and whether it was made from the design on screen. A question only: a flyer is
+        sent by the Send button in the preview window, which the plugin takes from a
+        signed-in administrator and refuses a session's token."""
+        return self._call("GET", self._session_path("/flyer-status"))
+
     # -- search page sessions ---------------------------------------------
 
     def search_options(self) -> dict:
@@ -302,6 +312,13 @@ def _describe_html(raw: str) -> str:
             "means the request never reached the preview module")
 
 
+#: What the plugin says (422, `crecs_preview_flyer_map_unsupported`) to a flyer with a satellite or
+#: hybrid map when this site's CRE Cloud is known not to make one: nothing was made or sent.
+MAP_UNSUPPORTED_WORDS = (
+    "This site's CRE Cloud cannot make an aerial map yet, so a flyer with a satellite or hybrid map "
+    "cannot be made or sent. Use the road map instead, or ask for CRE Cloud to be updated.")
+
+
 def _explain(code: str, message: str, status: int) -> str:
     """Add the sentence that says what to do, for the failures that have an answer."""
     if code == "rest_no_route":
@@ -322,6 +339,10 @@ def _explain(code: str, message: str, status: int) -> str:
     if code == "crecs_preview_flyer_too_large":
         return ("The design carries too much image data for CRE Cloud to take. Use a smaller logo "
                 "(a PNG or JPEG of about 300 KB at most) or fewer images, then ask again.")
+    if code == "crecs_preview_flyer_map_unsupported":
+        # The plugin's own sentence is plain and says what to do; keep it as it is, and say it
+        # anyway when a site sends none.
+        return message or MAP_UNSUPPORTED_WORDS
     if code in ("crecs_preview_unauthorised", "crecs_preview_expired") or status in (401, 403):
         return (f"{message} If a new preview link was issued, the token changed with it "
                 f"— in {ADMIN_SCREEN}, use New link on this session (or start a new one) "
@@ -661,6 +682,17 @@ def page_words(page: dict) -> str:
     return what + (f", {place}" if place else "")
 
 
+#: Why CRE Cloud printed the street map where a satellite or hybrid one was designed
+#: (`reason` of W-FL-MAP-FALLBACK), in words a person can follow.
+_MAP_FALLBACK_REASON = {
+    "no_key": "CRE Cloud has no map key to make it with",
+    "google_error": "Google, which draws the satellite pictures, could not make this one",
+    "timeout": "CRE Cloud ran out of time making it",
+    "no_imagery": "there are no satellite pictures of that place at that zoom (a smaller zoom number "
+                  "may help)",
+}
+
+
 def warning_words(warning: dict) -> str:
     """One warning CRE Cloud gave about the PDF, as a sentence about the page."""
     code, message = warning.get("code"), str(warning.get("message") or "")
@@ -672,12 +704,57 @@ def warning_words(warning: dict) -> str:
     if code == "W-FL-ATTACHMENT-SKIPPED":
         return f"the attachment {named} could not be used, so it was left out of the PDF"
     if code == "W-FL-NO-MAP":
+        if warning.get("reason") == "address_hidden":
+            return ("a map block shows nothing, on purpose: the property hides its address, and a map "
+                    "would give it away")
         return ("a map block shows nothing: CRE Cloud has no map picture for this property "
                 "(a hidden address never gets one)")
+    if code == "W-FL-MAP-FALLBACK":
+        why = _MAP_FALLBACK_REASON.get(warning.get("reason")) \
+            if isinstance(warning.get("reason"), str) else None
+        return ("a map block could not be made as the satellite picture that was designed, so the flyer "
+                "is showing the street map instead: " + (why or "CRE Cloud could not make it"))
+    if code == "W-FL-MAP-OVERLAY-SKIPPED":
+        count = warning.get("skipped")
+        if isinstance(count, int) and not isinstance(count, bool) and count >= 1:
+            return (f"{_plural(count, 'thing')} drawn on the property could not be drawn on the map, so "
+                    f"{'it is' if count == 1 else 'they are'} missing from it")
+        return ("some of the things drawn on the property could not be drawn on the map, so they are "
+                "missing from it")
     if code == "W-FL-NO-FRAME":
         return (f"the design has no frame for the attachment {named}, so it sits alone on its page, "
                 "without the design's header and footer")
+    if code == "W-FL-IMAGE-LOAD":
+        return "a picture could not be loaded, so it is missing or broken in the flyer"
     return message or f"CRE Cloud reported {code or 'a problem'}"
+
+
+#: The kinds of map the flyer printer knows, in the order they are told, with what a person calls
+#: each: `road` is the street map; the other two are the aerial ones.
+_MAP_KINDS = (("road", "street map"), ("satellite", "satellite map"),
+              ("hybrid", "satellite map with street names"))
+
+
+def map_types_words(value) -> str:
+    """The `capabilities` line about the aerial maps, from the plugin's `flyer_map_types`.
+
+    The plugin gives a list of the kinds CRE Cloud makes, or null when it does not know:
+    nothing was cached yet for someone who may not ask, CRE Cloud predates aerial maps or
+    could not be reached. A list is read as the plugin reads it (a name it does not know is
+    dropped); one with no satellite or hybrid in it is a site that makes the street map only,
+    where a flyer asking for an aerial map is refused.
+    """
+    if not isinstance(value, list):
+        return ("not known: CRE Cloud has not said whether it can make satellite maps for this site. "
+                "Offer the street map; if the person wants a satellite one, make the exact PDF and "
+                "check that the picture really is a satellite map")
+    made = [words for kind, words in _MAP_KINDS if kind in value]
+    if not any(kind in value for kind in ("satellite", "hybrid")):
+        return ("street map only: CRE Cloud cannot make satellite maps for this site yet, so a flyer "
+                "asking for one is refused. Offer the street map, or ask whoever looks after CRE Cloud "
+                "to have it updated")
+    return ("available: " + ", ".join(made) + ". CRE Cloud makes the satellite ones when it prints the "
+            "flyer, so they show only in the exact PDF")
 
 
 class Busy(Exception):
@@ -904,6 +981,144 @@ def cmd_pdf(client: Client, revision: int | None, dpi: int, out_dir: Path | None
     return 0
 
 
+# ---------------------------------------------------------------------------------------
+# has the flyer been sent, in words
+#
+# A flyer is sent by a person pressing Send in the preview window (the plugin takes it
+# from a signed-in administrator, never from a session's token), so the assistant can only
+# ask afterwards. What the answer says is for a person who owns a property website, through
+# the assistant: sentences, a time and a page count, no code, no hash.
+# ---------------------------------------------------------------------------------------
+
+#: Where a design applies, in words: the choice made when the person pressed Send.
+_SEND_SOURCE = {"site": "as the whole site's design", "property": "only for this property"}
+
+_NOT_LIVE_YET = "It is not live yet: visitors keep getting the flyer they got before."
+
+_TIME = re.compile(r"(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|\+00:00|\s*UTC)?")
+
+
+def when_words(value) -> str:
+    """A time CRE Cloud gave, written as the preview writes its own (`2026-10-19 12:00 UTC`).
+    A time this cannot read is said as it came, and none is said as nothing."""
+    text = str(value).strip() if value is not None else ""
+    match = _TIME.fullmatch(text)
+    return f"{match.group(1)} {match.group(2)} UTC" if match else text
+
+
+def sent_text(status: dict) -> str:
+    """A flyer's status, as the assistant tells it: has it been sent, is CRE Cloud still making
+    it, did it fail, is it live, and is it the design on screen."""
+    lines = []
+    if status.get("property"):
+        lines.append(f"Property: {status['property']}.")
+
+    if not status.get("sent"):
+        lines.append("Nothing has been sent to CRE Cloud for this property yet, so visitors still get "
+                     "the flyer they get today.")
+        lines.append("If the person says they pressed Send, it did not go through: ask them to press "
+                     "Send again and to tell you what the bar says.")
+        return "\n".join(lines)
+
+    state = status.get("state")
+    error = status.get("error") if isinstance(status.get("error"), dict) else {}
+    reason = str(error.get("message") or "").strip()
+
+    if status.get("retrying"):
+        lines.append("CRE Cloud had a problem and is trying again.")
+        if reason:
+            lines.append(f"It said: {reason}")
+        lines.extend([_NOT_LIVE_YET, "Ask again in a little while."])
+    elif state in ("queued", "rendering"):
+        lines.append("CRE Cloud is still making it.")
+        if status.get("requested_at"):
+            lines.append(f"It was asked for at {when_words(status['requested_at'])}.")
+        lines.extend([_NOT_LIVE_YET, "Ask again in a little while."])
+    elif state == "failed":
+        lines.append("CRE Cloud could not make the flyer.")
+        lines.append(f"It said: {reason}" if reason else "It gave no reason.")
+        lines.append("Nothing changed for visitors: the previous flyer, if there was one, keeps being served.")
+        lines.append("To try again, the person has to press Send again; if the message is about the "
+                     "design, change the design first.")
+    elif state == "ready":
+        facts = []
+        count = status.get("page_count")
+        if isinstance(count, int) and not isinstance(count, bool) and count > 0:
+            facts.append(_plural(count, "page"))
+        if status.get("source") in _SEND_SOURCE:
+            facts.append(_SEND_SOURCE[status["source"]])
+        made = "CRE Cloud made the flyer"
+        if status.get("generated_at"):
+            made += f" on {when_words(status['generated_at'])}"
+        lines.append(made + (": " + ", ".join(facts) if facts else "") + ".")
+        visitors = "Visitors who download this property's flyer get it now."
+        if status.get("flyer_url"):
+            visitors += f" The link they use: {status['flyer_url']}"
+        lines.append(visitors)
+    else:
+        lines.append(f"CRE Cloud reports a state this command does not know ({state or 'none'}). "
+                     "Do not tell the person it is live.")
+
+    # Whether what was sent is what is on screen. A site that does not say is not made to.
+    if status.get("up_to_date") is False:
+        lines.append("What is on screen in the preview is newer than what was sent: it has changes CRE "
+                     "Cloud does not have. To send them, the person has to press Send again; you can "
+                     "keep designing first.")
+    elif status.get("up_to_date") is True:
+        lines.append("What was sent is the design on display in the preview.")
+
+    warnings = [w for w in (status.get("warnings") or []) if isinstance(w, dict)]
+    if warnings:
+        lines.append("Things CRE Cloud noticed in the last flyer it made:")
+        lines.extend(f"  - {warning_words(w)}" for w in warnings)
+    elif state == "ready":
+        lines.append("CRE Cloud gave no warnings.")
+    return "\n".join(lines)
+
+
+def sent_refusal(exc: Refused) -> str | None:
+    """What a refusal to the question means for it, when that is not what any command's refusal
+    means: None leaves the usual words."""
+    message = str(exc.payload.get("message") or "").strip()
+    if exc.status == 502 or exc.code == "crecs_preview_flyer_api":
+        said = f" ({message.rstrip('. ')})" if message else ""
+        return ("CRE Cloud could not be asked just now, so it is not known whether the flyer was sent"
+                f"{said}. Nothing has changed; ask again in a moment.")
+    if exc.status == 404 and exc.code == "rest_no_route":
+        return ("the site did not understand the question, so it cannot say whether the flyer was sent: its "
+                "CRE Cloud Solutions plugin is older than this skill. Ask whoever looks after the site to "
+                "update the plugin, and do not tell the person whether the flyer was sent.")
+    if exc.status == 404:
+        return (f"the site found nothing to answer with: {message or 'not found'} If the preview has ended, "
+                f"start a new flyer preview in {ADMIN_SCREEN} and save the box it shows with "
+                "`crecs_preview.py connect`.")
+    return None
+
+
+def cmd_sent(client: Client, as_json: bool) -> int:
+    """Ask whether the flyer of the property on display has been sent, and how CRE Cloud got on.
+
+    Only ever asks. The person presses Send; this is how the assistant finds out afterwards
+    whether it went through, instead of taking the person's word or the button's.
+    """
+    try:
+        status = client.flyer_status()
+    except Refused as exc:
+        words = sent_refusal(exc)
+        if words is None:
+            raise
+        print(f"refused: {words}", file=sys.stderr)
+        return 2
+    if not isinstance(status, dict):
+        raise Transport("the site's answer about the flyer was not what was expected, so nothing is "
+                        "known about it; try again")
+    if as_json:
+        print(json.dumps({k: v for k, v in status.items() if k != "token"}, indent=1))
+    else:
+        print(sent_text(status))
+    return 0
+
+
 def cmd_watch(client: Client, interval: float) -> int:
     """Print state transitions until interrupted. Used to confirm sync by eye."""
     seen = None
@@ -933,6 +1148,9 @@ def cmd_watch(client: Client, interval: float) -> int:
 REFUSAL_HINTS = {
     "crecs_preview_no_property":
         "choose the property to show with `crecs_preview.py property <slug>`, then ask again",
+    "crecs_preview_flyer_map_unsupported":
+        "nothing was made or sent. Tell the person aerial maps are not available on this site yet, "
+        "offer the street map instead, and ask for the PDF again once the design uses it",
 }
 
 
@@ -986,6 +1204,9 @@ def main(argv=None) -> int:
         sub.add_parser(name, parents=[common])
     sub.add_parser("published", parents=[common],
                    help="a search page session: is the layout on display what the live page shows?")
+    sub.add_parser("sent", parents=[common],
+                   help="a flyer session: has the flyer been sent to CRE Cloud, and has CRE Cloud made it? "
+                        "Only asks: a person sends it, with the Send button in the preview window")
 
     co = sub.add_parser("connect", parents=[common],
                         help="save the session the Template preview screen shows, after checking it")
@@ -1047,7 +1268,9 @@ def main(argv=None) -> int:
             if args.json:
                 print(json.dumps(caps, indent=1))
             else:
-                lines = [f"{k:26} {v}" for k, v in caps.items() if not isinstance(v, (dict, list))]
+                # flyer_map_types is said in words below, never as a raw value (null included).
+                lines = [f"{k:26} {v}" for k, v in caps.items()
+                         if not isinstance(v, (dict, list)) and k != "flyer_map_types"]
                 kinds = caps.get("session_kinds")
                 if isinstance(kinds, list) and kinds:
                     lines.append(f"{'session_kinds':26} " + ", ".join(str(k) for k in kinds))
@@ -1055,6 +1278,14 @@ def main(argv=None) -> int:
                     pdf = caps["flyer_pdf"]
                     lines.append(f"{'flyer_pdf':26} " + ("available" if pdf.get("available") else
                                  "not available: " + str(pdf.get("reason") or "no reason given")))
+                if isinstance(caps.get("flyer_send"), dict):
+                    send = caps["flyer_send"]
+                    lines.append(f"{'flyer_send':26} " + (
+                        "available (a person sends it, with the Send button in the preview window)"
+                        if send.get("available") else
+                        "not available: " + str(send.get("reason") or "no reason given")))
+                if "flyer_map_types" in caps:
+                    lines.append(f"{'flyer_map_types':26} " + map_types_words(caps["flyer_map_types"]))
                 print("\n".join(lines))
             return 0
 
@@ -1069,6 +1300,9 @@ def main(argv=None) -> int:
         if args.cmd == "pdf":
             return cmd_pdf(client, args.revision, args.dpi, args.out_dir, args.with_pdf, args.json, folder,
                            args.fresh)
+
+        if args.cmd == "sent":
+            return cmd_sent(client, args.json)
 
         if args.cmd == "apply":
             raw = json.loads(args.document.read_text(encoding="utf-8"))

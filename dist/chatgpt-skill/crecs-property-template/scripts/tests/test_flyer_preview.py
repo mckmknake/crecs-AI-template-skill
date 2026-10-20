@@ -20,11 +20,14 @@ import contextlib
 import io
 import json
 import os
+import re
 import shutil
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.parse
+import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from unittest import mock
@@ -47,6 +50,12 @@ DOCUMENT = {
     "content": [{"id": "abcd1234", "elType": "container", "widgetType": "crecs_flyer",
                  "settings": {"orientation": "portrait"}, "elements": []}],
 }
+
+
+# What the plugin answers (422, crecs_preview_flyer_map_unsupported) to a design that asks for a
+# satellite or hybrid map when CRE Cloud is known not to make one.
+MAP_REFUSAL = ("This site's CRE Cloud cannot make an aerial map yet, so a flyer with a satellite or hybrid "
+               "map cannot be made or sent. Use the road map instead, or ask for CRE Cloud to be updated.")
 
 
 def b64(data):
@@ -79,7 +88,13 @@ class Site:
                     "body": json.loads(raw) if raw else None,
                 })
                 queue = site.routes.get((self.command, path))
-                if not queue:
+                if not queue and self.command == "POST" and path.endswith("/flyer-send"):
+                    # What the plugin answers a bearer token that tries to send a flyer: sending
+                    # is the person's button in the viewer, never a call a command can make.
+                    status, payload, headers = 403, {
+                        "code": "crecs_preview_publish_in_viewer",
+                        "message": "A flyer is sent with the Send button in the preview window."}, {}
+                elif not queue:
                     status, payload, headers = 404, {"code": "rest_no_route", "message": "No route."}, {}
                 else:
                     status, payload, headers = queue.pop(0) if len(queue) > 1 else queue[0]
@@ -110,6 +125,14 @@ class Site:
 
     def asked(self, method, path):
         return [r for r in self.requests if r["method"] == method and r["path"] == path]
+
+    def flyer_status(self, session_id, answer, status=200):
+        """Queue what `GET /sessions/{id}/flyer-status` answers (see `status_answer`)."""
+        self.on("GET", "/sessions/%s/flyer-status" % session_id, status, answer)
+
+    def tried_to_send(self):
+        """Every request that went to a route a flyer is sent through."""
+        return [r for r in self.requests if r["path"].endswith("/flyer-send")]
 
 
 def box(base, session_id, token, kind=None):
@@ -726,6 +749,34 @@ class Pdf(Base):
         for code in ("W-FL-PAGE-OVERFLOW", "W-FL-ATTACHMENT-SKIPPED", "W-FL-NO-MAP", "W-FL-NO-FRAME"):
             self.assertNotIn(code, out, "a warning code was printed in place of words")
 
+    def test_the_map_warnings_are_said_in_plain_words_with_their_reasons(self):
+        self.serve(made(warnings=[
+            {"code": "W-FL-NO-MAP", "message": "No map.", "reason": "address_hidden"},
+            {"code": "W-FL-MAP-FALLBACK", "message": "Fell back.", "reason": "no_key"},
+            {"code": "W-FL-MAP-FALLBACK", "message": "Fell back.", "reason": "google_error"},
+            {"code": "W-FL-MAP-FALLBACK", "message": "Fell back.", "reason": "timeout"},
+            {"code": "W-FL-MAP-FALLBACK", "message": "Fell back.", "reason": "no_imagery"},
+            {"code": "W-FL-MAP-OVERLAY-SKIPPED", "message": "Skipped.", "skipped": 2},
+        ]))
+        _code, out, _err = self.run_pdf("--out-dir", str(self.out))
+        self.assertNotIn("no warnings", out.lower())
+        self.assertIn("hides its address", out)
+        self.assertEqual(4, out.count("showing the street map instead"))
+        for reason in ("no map key", "Google", "ran out of time", "no satellite pictures"):
+            self.assertIn(reason, out)
+        self.assertIn("2 things drawn on the property could not be drawn on the map", out)
+        for raw in ("W-FL-NO-MAP", "W-FL-MAP-FALLBACK", "W-FL-MAP-OVERLAY-SKIPPED", "address_hidden",
+                    "no_key", "google_error", "no_imagery", "skipped"):
+            self.assertNotIn(raw, out, "a code or a reason was printed in place of words")
+
+    def test_the_json_answer_keeps_the_map_warnings_as_the_site_gave_them(self):
+        warnings = [{"code": "W-FL-MAP-FALLBACK", "message": "Fell back.", "reason": "timeout"},
+                    {"code": "W-FL-MAP-OVERLAY-SKIPPED", "message": "Skipped.", "skipped": 1}]
+        self.serve(made(warnings=warnings))
+        code, out, err = self.run_pdf("--out-dir", str(self.out), "--json")
+        self.assertEqual(0, code, err)
+        self.assertEqual(warnings, json.loads(out)["warnings"])
+
     # -- busy and rate limited ---------------------------------------------------------
 
     def test_when_the_engine_is_busy_it_waits_and_asks_again(self):
@@ -1071,9 +1122,22 @@ class Pdf(Base):
         self.assertIn("too much image data", err)
         self.assertIn("smaller logo", err)
 
+    def test_a_design_with_an_aerial_map_the_site_cannot_make_says_so_and_offers_the_street_map(self):
+        err = self.refused(422, "crecs_preview_flyer_map_unsupported", MAP_REFUSAL)
+        self.assertIn(MAP_REFUSAL, err)
+        self.assertIn("street map", err, "no way out was offered")
+        self.assertIn("nothing was made or sent", err.lower())
+        self.assertNotIn("New link", err)
+
+    def test_the_map_refusal_still_says_it_when_the_site_sends_no_words(self):
+        err = self.refused(422, "crecs_preview_flyer_map_unsupported", "")
+        self.assertIn("cannot make an aerial map", err)
+        self.assertIn("satellite or hybrid", err)
+
     def test_the_new_refusals_never_carry_a_token_or_a_stack_trace(self):
         for status, code in ((403, "crecs_preview_forbidden"), (409, "crecs_preview_too_many"),
-                             (403, "crecs_preview_forbidden_property"), (413, "crecs_preview_flyer_too_large")):
+                             (403, "crecs_preview_forbidden_property"), (413, "crecs_preview_flyer_too_large"),
+                             (422, "crecs_preview_flyer_map_unsupported")):
             with self.subTest(code=code):
                 self.site.routes.clear()
                 self.site.on("POST", self.PATH, status, {"code": code, "message": "No.", "token": TOKEN_FLYER})
@@ -1174,6 +1238,667 @@ class Pdf(Base):
         code, out, err = self.run_pdf()
         self.assertEqual(2, code)
         self.no_token(out, err)
+
+
+# ---------------------------------------------------------------------------------------
+# has the flyer been sent, and has CRE Cloud made it
+#
+# Sending is a person's button in the preview window (Send, in the viewer, administrators
+# only): a command's token is refused. What the assistant has is a question it can ask
+# afterwards, `sent`, and it repeats the answer to someone who owns a property website.
+# ---------------------------------------------------------------------------------------
+
+LINK = "https://example.test/f/2642/hwy-380-farmersville.pdf"
+DESIGN_HASH = "ab" * 32
+
+
+def status_answer(**extra):
+    """What `flyer-status` answers for a property whose flyer CRE Cloud has made, from the
+    design on display, as the whole site's design."""
+    data = {
+        "property": "hwy-380-farmersville", "sent": True, "state": "ready", "source": "site",
+        "design_hash": DESIGN_HASH, "up_to_date": True, "retrying": False,
+        "generated_at": "2026-10-19T12:00:00Z", "requested_at": "2026-10-19T11:59:40Z",
+        "page_count": 6, "flyer_url": LINK, "warnings": [], "error": None,
+    }
+    data.update(extra)
+    return data
+
+
+def not_sent(**extra):
+    """What it answers for a property CRE Cloud has no designed flyer for."""
+    data = status_answer(sent=False, state=None, source=None, design_hash=None, up_to_date=False,
+                         generated_at=None, requested_at=None, page_count=None, flyer_url=None)
+    data.update(extra)
+    return data
+
+
+class Sent(Base):
+
+    PATH = "/sessions/ps_flyer/flyer-status"
+
+    def setUp(self):
+        super().setUp()
+        self.file = self.save_session("flyer.json", "ps_flyer", TOKEN_FLYER, "flyer")
+
+    def say(self, answer=None, *argv, status=200):
+        if answer is not None:
+            self.site.flyer_status("ps_flyer", answer, status)
+        code, out, err = self.run_cli(["sent", "--session-file", str(self.file)] + list(argv))
+        self.no_token(out, err)
+        return code, out, err
+
+    def words(self, answer):
+        code, out, err = self.say(answer)
+        self.assertEqual(0, code, err)
+        return out
+
+    # -- what it asks ---------------------------------------------------------------------
+
+    def test_it_asks_only_for_the_status_with_the_sessions_token(self):
+        self.say(status_answer())
+        self.assertEqual(1, len(self.site.requests))
+        asked = self.site.requests[0]
+        self.assertEqual(("GET", self.PATH, "Bearer " + TOKEN_FLYER, None),
+                         (asked["method"], asked["path"], asked["auth"], asked["body"]))
+        self.assertEqual([], self.site.tried_to_send())
+
+    # -- not sent ---------------------------------------------------------------------------
+
+    def test_a_property_nothing_was_sent_for_says_so_and_that_visitors_are_unchanged(self):
+        out = self.words(not_sent())
+        self.assertIn("Nothing has been sent to CRE Cloud for this property yet", out)
+        self.assertIn("visitors still get the flyer they get today", out)
+        self.assertIn("hwy-380-farmersville", out)
+        # A flyer nobody sent has no design to be newer than, and nothing is being made.
+        for wrong in ("newer", "still making", "made the flyer", "trying again", "no warnings"):
+            self.assertNotIn(wrong, out.lower(), "a flyer nobody sent was described as: " + wrong)
+
+    def test_a_person_who_says_they_sent_it_is_told_it_did_not_go_through(self):
+        out = self.words(not_sent())
+        self.assertIn("did not go through", out)
+        self.assertIn("press Send again", out)
+
+    # -- made ---------------------------------------------------------------------------------
+
+    def test_a_flyer_made_from_the_design_on_display_says_when_how_long_and_where(self):
+        out = self.words(status_answer())
+        self.assertIn("CRE Cloud made the flyer on 2026-10-19 12:00 UTC", out)
+        self.assertIn("6 pages", out)
+        self.assertIn("as the whole site's design", out)
+        self.assertIn("Visitors who download this property's flyer get it", out)
+        self.assertIn(LINK, out)
+        self.assertIn("What was sent is the design on display in the preview", out)
+        self.assertIn("no warnings", out.lower())
+        for wrong in ("newer", "still making", "trying again", "could not make"):
+            self.assertNotIn(wrong, out)
+
+    def test_one_page_is_not_pages(self):
+        out = self.words(status_answer(page_count=1))
+        self.assertIn("1 page", out)
+        self.assertNotIn("1 pages", out)
+
+    def test_a_design_for_one_property_says_only_for_this_property(self):
+        out = self.words(status_answer(source="property"))
+        self.assertIn("only for this property", out)
+        self.assertNotIn("whole site", out)
+
+    def test_a_source_it_does_not_know_is_left_unsaid(self):
+        out = self.words(status_answer(source=None))
+        self.assertNotIn("whole site", out)
+        self.assertNotIn("only for this property", out)
+        self.assertIn("CRE Cloud made the flyer on 2026-10-19 12:00 UTC", out)
+
+    def test_a_design_changed_since_it_was_sent_says_what_is_on_screen_is_newer(self):
+        out = self.words(status_answer(up_to_date=False))
+        self.assertIn("What is on screen in the preview is newer than what was sent", out)
+        self.assertIn("press Send again", out)
+        self.assertIn("keep designing", out)
+        self.assertNotIn("is the design on display", out)
+        # What was sent is still what visitors get meanwhile.
+        self.assertIn("CRE Cloud made the flyer on", out)
+
+    def test_a_site_that_does_not_say_whether_it_is_up_to_date_is_not_made_to(self):
+        answer = status_answer()
+        del answer["up_to_date"]
+        out = self.words(answer)
+        self.assertNotIn("newer", out)
+        self.assertNotIn("design on display", out)
+
+    def test_a_ready_flyer_with_no_link_does_not_make_one_up(self):
+        out = self.words(status_answer(flyer_url=None))
+        self.assertIn("CRE Cloud made the flyer on", out)
+        self.assertNotIn("None", out)
+        self.assertNotIn("https://", out)
+
+    def test_a_time_it_cannot_read_is_said_as_it_came(self):
+        out = self.words(status_answer(generated_at="yesterday afternoon"))
+        self.assertIn("CRE Cloud made the flyer on yesterday afternoon", out)
+
+    def test_a_ready_flyer_with_no_time_says_nothing_of_one(self):
+        out = self.words(status_answer(generated_at=None))
+        self.assertIn("CRE Cloud made the flyer", out)
+        self.assertNotIn("None", out)
+
+    # -- still being made -------------------------------------------------------------------------
+
+    def test_a_queued_or_rendering_flyer_is_still_being_made_and_not_live(self):
+        for state in ("queued", "rendering"):
+            with self.subTest(state=state):
+                self.site.routes.clear()
+                out = self.words(status_answer(state=state, generated_at=None))
+                self.assertIn("CRE Cloud is still making it", out)
+                self.assertIn("not live yet", out)
+                self.assertIn("visitors keep getting the flyer they got before", out)
+                self.assertIn("2026-10-19 11:59 UTC", out)
+                self.assertIn("Ask again", out)
+                for wrong in ("made the flyer on", "trying again", "could not make", "no warnings", LINK):
+                    self.assertNotIn(wrong, out, "a flyer still being made was described as: " + wrong)
+
+    def test_a_flyer_being_remade_over_an_older_one_does_not_call_the_older_one_new(self):
+        out = self.words(status_answer(state="rendering", generated_at="2026-10-18T08:00:00Z"))
+        self.assertIn("CRE Cloud is still making it", out)
+        self.assertNotIn("2026-10-18", out)
+
+    # -- trying again -------------------------------------------------------------------------------
+
+    def test_a_failed_attempt_that_is_being_tried_again_says_so_with_what_went_wrong(self):
+        out = self.words(status_answer(
+            state="queued", retrying=True, generated_at=None,
+            error={"code": "render_failed", "message": "The printer did not answer."}))
+        self.assertIn("CRE Cloud had a problem and is trying again", out)
+        self.assertIn("The printer did not answer.", out)
+        self.assertIn("not live yet", out)
+        self.assertIn("Ask again", out)
+        self.assertNotIn("render_failed", out)
+        for wrong in ("could not make the flyer", "still making it", "made the flyer on"):
+            self.assertNotIn(wrong, out)
+
+    def test_a_retry_with_no_message_still_says_it_is_trying_again(self):
+        out = self.words(status_answer(state="rendering", retrying=True, error=None))
+        self.assertIn("CRE Cloud had a problem and is trying again", out)
+        self.assertNotIn("None", out)
+
+    # -- failed ------------------------------------------------------------------------------------------
+
+    def test_a_failed_flyer_says_the_previous_one_keeps_being_served_and_why_it_failed(self):
+        out = self.words(status_answer(
+            state="failed", generated_at=None,
+            error={"code": "policy_refused", "message": "A page of the design is too large to print."}))
+        self.assertIn("CRE Cloud could not make the flyer", out)
+        self.assertIn("A page of the design is too large to print.", out)
+        self.assertIn("previous flyer", out)
+        self.assertIn("keeps being served", out)
+        self.assertIn("press Send again", out)
+        self.assertNotIn("policy_refused", out)
+        for wrong in ("trying again", "still making it", "made the flyer on", LINK):
+            self.assertNotIn(wrong, out)
+
+    def test_a_failure_with_no_reason_says_there_was_none(self):
+        out = self.words(status_answer(state="failed", error=None))
+        self.assertIn("CRE Cloud could not make the flyer", out)
+        self.assertIn("gave no reason", out)
+
+    def test_a_failure_of_a_design_that_has_changed_says_that_too(self):
+        out = self.words(status_answer(state="failed", up_to_date=False,
+                                       error={"code": "x", "message": "No."}))
+        self.assertIn("What is on screen in the preview is newer than what was sent", out)
+
+    def test_a_state_it_does_not_know_is_not_taken_for_ready(self):
+        out = self.words(status_answer(state="archived"))
+        self.assertIn("does not know", out)
+        self.assertIn("archived", out)
+        self.assertIn("Do not tell the person it is live", out)
+        self.assertNotIn("made the flyer on", out)
+
+    # -- the warnings, in words ---------------------------------------------------------------------------
+
+    def test_warnings_are_said_in_plain_words_and_never_by_their_codes(self):
+        out = self.words(status_answer(warnings=[
+            {"code": "W-FL-PAGE-OVERFLOW", "message": "The PDF has more pages than the design."},
+            {"code": "W-FL-NO-MAP", "message": "No stored map."},
+            {"code": "W-FL-NO-FRAME", "message": "No frame.", "attachment_name": "Floor plan"},
+            {"code": "W-FL-ATTACHMENT-SKIPPED", "message": "Skipped.", "attachment_name": "Old plan"},
+            {"code": "W-FL-IMAGE-LOAD", "message": "An image answered an error."},
+        ]))
+        self.assertNotIn("no warnings", out.lower())
+        self.assertIn("Things CRE Cloud noticed", out)
+        self.assertIn("did not fit", out)
+        self.assertIn("map", out)
+        self.assertIn('"Floor plan"', out)
+        self.assertIn('"Old plan"', out)
+        self.assertIn("left out", out)
+        self.assertIn("a picture could not be loaded, so it is missing or broken in the flyer", out)
+        for code in ("W-FL-PAGE-OVERFLOW", "W-FL-NO-MAP", "W-FL-NO-FRAME", "W-FL-ATTACHMENT-SKIPPED",
+                     "W-FL-IMAGE-LOAD"):
+            self.assertNotIn(code, out, "a warning code was printed in place of words")
+
+    def test_a_warning_it_does_not_know_is_said_as_its_message_or_else_by_its_code(self):
+        out = self.words(status_answer(warnings=[
+            {"code": "W-FL-SOMETHING-NEW", "message": "CRE Cloud says something new."},
+            {"code": "W-FL-ANOTHER-ONE"}]))
+        self.assertIn("CRE Cloud says something new.", out)
+        self.assertIn("W-FL-ANOTHER-ONE", out)
+
+    def test_the_new_picture_warning_is_worded_for_the_pdf_command_too(self):
+        # One set of words for the two commands: what the printer said about the PDF is the same
+        # thing whether it came from the preview's copy or from the sent one.
+        words = crecs_preview.warning_words({"code": "W-FL-IMAGE-LOAD", "message": "x"})
+        self.assertEqual("a picture could not be loaded, so it is missing or broken in the flyer", words)
+
+    def test_the_map_warnings_are_said_in_plain_words_in_the_sent_status_too(self):
+        out = self.words(status_answer(warnings=[
+            {"code": "W-FL-NO-MAP", "message": "No map.", "reason": "address_hidden"},
+            {"code": "W-FL-MAP-FALLBACK", "message": "Fell back.", "reason": "no_imagery"},
+            {"code": "W-FL-MAP-OVERLAY-SKIPPED", "message": "Skipped.", "skipped": 1},
+        ]))
+        self.assertIn("Things CRE Cloud noticed", out)
+        self.assertIn("hides its address", out)
+        self.assertIn("showing the street map instead", out)
+        self.assertIn("no satellite pictures", out)
+        self.assertIn("1 thing drawn on the property could not be drawn on the map", out)
+        for raw in ("W-FL-NO-MAP", "W-FL-MAP-FALLBACK", "W-FL-MAP-OVERLAY-SKIPPED", "address_hidden",
+                    "no_imagery", "skipped"):
+            self.assertNotIn(raw, out, "a code or a reason was printed in place of words")
+
+    def test_a_failed_flyer_with_warnings_from_the_last_good_build_still_lists_them(self):
+        out = self.words(status_answer(state="failed", error={"code": "x", "message": "No."},
+                                       warnings=[{"code": "W-FL-NO-MAP", "message": "m"}]))
+        self.assertIn("Things CRE Cloud noticed", out)
+
+    # -- the shape of what is printed ---------------------------------------------------------------------------
+
+    def test_it_is_sentences_not_a_dump_of_keys_and_hashes(self):
+        for answer in (status_answer(), not_sent(), status_answer(state="failed", error={"code": "e", "message": "m"})):
+            with self.subTest(state=answer["state"]):
+                self.site.routes.clear()
+                out = self.words(answer)
+                for raw in ("up_to_date", "design_hash", "page_count", "requested_at", "flyer_url", "retrying",
+                            DESIGN_HASH, DESIGN_HASH[:12], "{", "}"):
+                    self.assertNotIn(raw, out, "a raw key or value was printed: " + raw)
+
+    def test_json_is_the_sites_answer_without_any_token(self):
+        answer = status_answer(token=TOKEN_FLYER, warnings=[{"code": "W-FL-NO-MAP", "message": "m"}])
+        code, out, err = self.say(answer, "--json")
+        self.assertEqual(0, code, err)
+        data = json.loads(out)
+        self.assertEqual(DESIGN_HASH, data["design_hash"])
+        self.assertEqual("ready", data["state"])
+        self.assertEqual("W-FL-NO-MAP", data["warnings"][0]["code"])
+        self.assertNotIn("token", data)
+
+    def test_a_json_answer_that_is_not_an_object_is_a_plain_failure(self):
+        code, out, err = self.say([1, 2, 3])
+        self.assertEqual(3, code)
+        self.assertEqual("", out)
+        self.assertIn("error:", err)
+        self.assertNotIn("Traceback", err)
+
+    # -- what goes wrong ----------------------------------------------------------------------------------------
+
+    def refused(self, status, code, message, **extra):
+        self.site.routes.clear()
+        self.site.requests.clear()
+        code_, out, err = self.say(dict({"code": code, "message": message}, **extra), status=status)
+        self.assertEqual(2, code_, "a refusal by the site exits 2")
+        self.assertEqual("", out)
+        self.assertEqual(1, len(self.site.asked("GET", self.PATH)), "a refusal is not asked again")
+        self.assertNotIn("Traceback", err)
+        return err
+
+    def test_a_dead_session_says_how_to_renew_it(self):
+        err = self.refused(401, "crecs_preview_unauthorised", "Wrong token.")
+        self.assertIn("New link", err)
+        self.assertIn("connect", err)
+
+    def test_a_person_who_is_not_an_administrator_is_told_so(self):
+        err = self.refused(403, "crecs_preview_forbidden",
+                           "Using a flyer preview needs a WordPress administrator.")
+        self.assertIn("Only a site administrator can use the flyer preview", err)
+        self.assertIn("administrator account", err)
+        self.assertNotIn("New link", err)
+
+    def test_a_preview_the_site_no_longer_has_says_how_to_start_another(self):
+        err = self.refused(404, "crecs_preview_unknown", "That preview session no longer exists.")
+        self.assertIn("That preview session no longer exists.", err)
+        self.assertIn("start a new flyer preview", err)
+        self.assertIn("Template preview", err)
+        self.assertIn("connect", err)
+
+    def test_a_plugin_that_does_not_know_the_question_is_an_older_plugin(self):
+        err = self.refused(404, "rest_no_route", "No route was found matching the URL and request method.")
+        self.assertIn("older than this skill", err)
+        self.assertIn("update the plugin", err)
+        self.assertIn("do not tell the person whether the flyer was sent", err)
+        self.assertNotIn("not enabled", err, "the preview works: only this question is unknown")
+
+    def test_cre_cloud_being_unreachable_says_nothing_changed_and_to_try_again(self):
+        err = self.refused(502, "crecs_preview_flyer_api", "CRE Cloud could not be reached.")
+        self.assertIn("not known whether the flyer was sent", err)
+        self.assertIn("CRE Cloud could not be reached", err)
+        self.assertIn("Nothing has changed", err)
+        self.assertIn("ask again in a moment", err)
+        self.assertNotIn("crecs_preview_flyer_api", err)
+
+    def test_a_bad_gateway_with_no_message_is_still_plain(self):
+        self.site.routes.clear()
+        code, _out, err = self.say({"code": "crecs_preview_flyer_api"}, status=502)
+        self.assertEqual(2, code)
+        self.assertIn("not known whether the flyer was sent", err)
+        self.assertNotIn("None", err)
+
+    def test_other_refusals_are_the_usual_ones(self):
+        err = self.refused(409, "crecs_preview_wrong_kind", "This is not a flyer preview.")
+        self.assertIn("This is not a flyer preview.", err)
+
+    def test_the_token_never_shows_whatever_the_site_says(self):
+        for status, code in ((401, "crecs_preview_unauthorised"), (403, "crecs_preview_forbidden"),
+                             (404, "crecs_preview_unknown"), (502, "crecs_preview_flyer_api"),
+                             (500, "crecs_preview_storage")):
+            with self.subTest(status=status):
+                err = self.refused(status, code, "No.", token=TOKEN_FLYER)
+                self.no_token(err)
+
+    def test_an_unreachable_site_is_a_connection_problem(self):
+        gone = self.save_session("gone.json", "ps_flyer", TOKEN_FLYER, "flyer")
+        data = json.loads(gone.read_text(encoding="utf-8"))
+        data["base"] = "http://127.0.0.1:9"  # nothing listens on the discard port
+        gone.write_text(json.dumps(data), encoding="utf-8")
+        code, out, err = self.run_cli(["sent", "--session-file", str(gone)])
+        self.assertEqual(3, code)
+        self.assertEqual("", out)
+        self.assertIn("error:", err)
+        self.assertNotIn("Traceback", err)
+        self.no_token(out, err)
+
+    # -- which session ---------------------------------------------------------------------------------------------
+
+    def test_with_all_three_sessions_saved_it_asks_the_flyer_one_without_being_told(self):
+        self.file.unlink()
+        self.save_session("preview-127.0.0.1.json", "ps_prop", TOKEN_PROPERTY)
+        self.save_session("preview-127.0.0.1-search.json", "ps_search", TOKEN_SEARCH, "search")
+        self.save_session("preview-127.0.0.1-flyer.json", "ps_flyer", TOKEN_FLYER, "flyer")
+        self.site.flyer_status("ps_flyer", status_answer())
+        code, out, err = self.run_cli(["sent"])
+        self.assertEqual(0, code, err)
+        self.assertEqual("/sessions/ps_flyer/flyer-status", self.site.requests[-1]["path"])
+        self.assertIn("flyer preview session", err)
+        self.no_token(out, err)
+
+    def test_with_no_flyer_session_it_says_how_to_start_one(self):
+        self.file.unlink()
+        self.save_session("preview-127.0.0.1-search.json", "ps_search", TOKEN_SEARCH, "search")
+        code, _out, err = self.run_cli(["sent"])
+        self.assertEqual(3, code)
+        self.assertEqual([], self.site.requests)
+        self.assertIn("Start flyer preview", err)
+
+
+# ---------------------------------------------------------------------------------------
+# no command of the skill sends a flyer
+# ---------------------------------------------------------------------------------------
+
+
+SCRIPTS = Path(__file__).resolve().parent.parent
+
+
+class NoCommandSends(Base):
+    """Sending is the person's Send button in the preview window. The plugin refuses a
+    bearer token on that route (403), and the skill must never be the one to try."""
+
+    def setUp(self):
+        super().setUp()
+        self.file = self.save_session("flyer.json", "ps_flyer", TOKEN_FLYER, "flyer")
+
+    def test_the_detector_can_fail(self):
+        # A test that no request reached the send route proves nothing unless the fake would
+        # have recorded one, and answered it as the plugin does.
+        request = urllib.request.Request(
+            self.site.base + API + "/sessions/ps_flyer/flyer-send", data=b"{}", method="POST",
+            headers={"Authorization": "Bearer " + TOKEN_FLYER, "Content-Type": "application/json"})
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request)
+        self.assertEqual(403, caught.exception.code)
+        self.assertEqual("crecs_preview_publish_in_viewer", json.loads(caught.exception.read())["code"])
+        self.assertEqual(1, len(self.site.tried_to_send()))
+
+    def test_no_script_names_the_route_a_flyer_is_sent_through(self):
+        scripts = sorted(SCRIPTS.glob("*.py")) + sorted((SCRIPTS / "crecs").glob("*.py"))
+        self.assertTrue(any(p.name == "crecs_preview.py" for p in scripts))
+        for path in scripts:
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("flyer-send", text, "%s names the route a flyer is sent through" % path.name)
+
+    def test_the_command_line_has_no_command_that_sends(self):
+        with contextlib.redirect_stdout(io.StringIO()) as help_text:
+            with self.assertRaises(SystemExit):
+                crecs_preview.main(["--help"])
+        # The usage line lists --kind's choices before the commands': take the one with the commands.
+        lists = [m.split(",") for m in re.findall(r"\{([a-z,]+)\}", help_text.getvalue())]
+        commands = [names for names in lists if "capabilities" in names][0]
+        self.assertIn("sent", commands)
+        # `published` is the search page's question and `sent` the flyer's: neither acts.
+        self.assertEqual([], [c for c in commands if "send" in c or c in ("publish", "export-flyer")],
+                         "a command that could send a flyer: " + ", ".join(commands))
+        # `sent` is a question: it has no flag that changes anything either.
+        with contextlib.redirect_stdout(io.StringIO()) as sent_help:
+            with self.assertRaises(SystemExit):
+                crecs_preview.main(["sent", "--help"])
+        self.assertNotIn("--send", sent_help.getvalue())
+        self.assertNotIn("--confirm", sent_help.getvalue())
+
+    def test_no_command_reaches_the_send_route_whatever_it_is_given(self):
+        document = Path(self.dir) / "flyer-layout.json"
+        document.write_text(json.dumps(DOCUMENT), encoding="utf-8")
+        self.site.on("GET", "/sessions/ps_flyer/state", 200, {"kind": "flyer", "head": 1})
+        self.site.on("GET", "/sessions/ps_flyer/flyer-status", 200, status_answer())
+        self.site.on("POST", "/sessions/ps_flyer/flyer-pdf", 404, {"code": "crecs_preview_no_revision",
+                                                                    "message": "No ready revision."})
+        session = ["--session-file", str(self.file)]
+        every = [
+            ["capabilities", "--base", self.site.base],
+            ["state"] + session, ["resume"] + session, ["current"] + session, ["export"] + session,
+            ["apply", "--document", str(document)] + session, ["property", "hwy-380-farmersville"] + session,
+            ["undo"] + session, ["options"] + session, ["media"] + session, ["published"] + session,
+            ["pdf"] + session, ["pdf", "--fresh", "--with-pdf"] + session, ["sent"] + session,
+            ["sent", "--json"] + session, ["close"] + session,
+        ]
+        for argv in every:
+            with self.subTest(command=argv[0]):
+                self.run_cli(argv)
+        self.assertGreater(len(self.site.requests), len(every) // 2, "the commands did not run")
+        self.assertEqual([], self.site.tried_to_send(), "a command reached the route a flyer is sent through")
+
+    def test_connect_with_a_flyer_box_does_not_send_either(self):
+        self.site.on("GET", "/sessions/ps_flyer2/state", 200, {"head": 0})
+        self.run_cli(["connect", "--session-dir", str(self.sessions)],
+                     stdin=box(self.site.base, "ps_flyer2", TOKEN_FLYER, "flyer"))
+        self.assertEqual([], self.site.tried_to_send())
+
+
+# ---------------------------------------------------------------------------------------
+# what the plugin says it can do about sending
+# ---------------------------------------------------------------------------------------
+
+
+class CapabilitiesSay(Base):
+
+    CAPS = {"product": "crecs-preview", "contract": 1, "session_kinds": ["property", "search", "flyer"]}
+
+    def caps(self, **extra):
+        self.site.on("GET", "/capabilities", 200, dict(self.CAPS, **extra))
+        return self.run_cli(["capabilities", "--base", self.site.base])
+
+    def test_a_plugin_that_can_send_says_so_in_one_line(self):
+        code, out, err = self.caps(flyer_send={"available": True})
+        self.assertEqual(0, code, err)
+        line = [l for l in out.splitlines() if l.startswith("flyer_send")]
+        self.assertEqual(1, len(line), out)
+        self.assertIn("available", line[0])
+        self.assertNotIn("not available", line[0])
+        self.assertIn("person", line[0], "it does not say the button is a person's")
+
+    def test_a_plugin_that_cannot_send_says_why(self):
+        _code, out, _err = self.caps(flyer_send={"available": False, "reason": "No design is ready to send."})
+        line = [l for l in out.splitlines() if l.startswith("flyer_send")][0]
+        self.assertIn("not available", line)
+        self.assertIn("No design is ready to send.", line)
+
+    def test_a_plugin_that_cannot_send_and_gives_no_reason_still_says_so(self):
+        _code, out, _err = self.caps(flyer_send={"available": False})
+        line = [l for l in out.splitlines() if l.startswith("flyer_send")][0]
+        self.assertIn("not available", line)
+        self.assertIn("no reason given", line)
+
+    def test_an_older_plugin_says_nothing_about_sending(self):
+        code, out, _err = self.caps()
+        self.assertEqual(0, code)
+        self.assertNotIn("flyer_send", out)
+
+    def test_the_pdf_line_is_still_there_beside_it(self):
+        _code, out, _err = self.caps(flyer_pdf={"available": True}, flyer_send={"available": True})
+        self.assertIn("flyer_pdf", out)
+        self.assertIn("flyer_send", out)
+
+    def test_json_is_the_raw_answer(self):
+        self.site.on("GET", "/capabilities", 200, dict(self.CAPS, flyer_send={"available": True}))
+        code, out, _err = self.run_cli(["capabilities", "--base", self.site.base, "--json"])
+        self.assertEqual(0, code)
+        self.assertEqual({"available": True}, json.loads(out)["flyer_send"])
+
+    # -- the aerial maps (flyer_map_types) ---------------------------------------------------
+
+    def map_line(self, value):
+        code, out, err = self.caps(flyer_map_types=value)
+        self.assertEqual(0, code, err)
+        lines = [l for l in out.splitlines() if l.startswith("flyer_map_types")]
+        self.assertEqual(1, len(lines), "one line for the maps, in words, never also a raw value:\n" + out)
+        return lines[0]
+
+    def test_a_site_that_can_make_every_map_names_each_in_plain_words(self):
+        line = self.map_line(["road", "satellite", "hybrid"])
+        for words in ("street map", "satellite map", "satellite map with street names"):
+            self.assertIn(words, line)
+        self.assertIn("exact PDF", line, "it does not say the aerial maps show only in the exact PDF")
+        self.assertNotIn("street map only", line, "every map is available")
+        self.assertNotIn("not known", line)
+        for raw in ("road", "hybrid", "["):
+            self.assertNotIn(raw, line, "a raw value was printed in place of words")
+
+    def test_only_the_maps_in_the_list_are_named(self):
+        line = self.map_line(["road", "satellite"])
+        self.assertIn("street map", line)
+        self.assertIn("satellite map", line)
+        self.assertNotIn("street names", line)
+
+    def test_a_site_that_makes_only_the_street_map_says_aerial_maps_are_not_available(self):
+        for value in (["road"], []):
+            with self.subTest(value=value):
+                self.site.routes.clear()
+                line = self.map_line(value)
+                self.assertIn("street map only", line)
+                self.assertIn("satellite", line)
+                self.assertIn("refused", line, "it does not say a satellite design would be refused")
+                self.assertIn("street map", line)
+                self.assertNotIn("street names", line)
+
+    def test_a_site_that_does_not_know_says_so_in_other_words_than_street_map_only(self):
+        for value in (None, "satellite", {"a": 1}):
+            with self.subTest(value=value):
+                self.site.routes.clear()
+                line = self.map_line(value)
+                self.assertIn("not known", line)
+                self.assertIn("street map", line)
+                self.assertIn("exact PDF", line)
+                self.assertNotIn("street map only", line)
+                self.assertNotIn("None", line)
+        unknown = self.map_line(None)
+        self.site.routes.clear()
+        only_road = self.map_line(["road"])
+        self.assertNotEqual(unknown, only_road)
+
+    def test_a_list_with_names_nobody_knows_is_read_as_the_plugin_reads_it(self):
+        # The plugin drops what it does not know: a list of nothing it knows lists no aerial map.
+        line = self.map_line(["terrain", 5, None, "satellite", "satellite"])
+        self.assertIn("satellite map", line)
+        self.assertNotIn("terrain", line)
+        self.site.routes.clear()
+        self.assertIn("street map only", self.map_line(["terrain"]))
+
+    def test_an_older_plugin_says_nothing_about_maps(self):
+        code, out, _err = self.caps()
+        self.assertEqual(0, code)
+        self.assertNotIn("flyer_map_types", out)
+
+    def test_the_map_line_is_beside_the_pdf_and_send_lines(self):
+        _code, out, _err = self.caps(flyer_pdf={"available": True}, flyer_send={"available": True},
+                                     flyer_map_types=["road"])
+        for key in ("flyer_pdf", "flyer_send", "flyer_map_types"):
+            self.assertIn(key, out)
+
+    def test_json_keeps_the_raw_map_types(self):
+        self.site.on("GET", "/capabilities", 200, dict(self.CAPS, flyer_map_types=["road", "hybrid"]))
+        code, out, _err = self.run_cli(["capabilities", "--base", self.site.base, "--json"])
+        self.assertEqual(0, code)
+        self.assertEqual(["road", "hybrid"], json.loads(out)["flyer_map_types"])
+
+
+# ---------------------------------------------------------------------------------------
+# the map warnings, worded by the one function both commands use
+# ---------------------------------------------------------------------------------------
+
+
+class MapWarningWords(unittest.TestCase):
+
+    def words(self, **warning):
+        return crecs_preview.warning_words(dict({"message": "the site's own words"}, **warning))
+
+    def test_a_hidden_address_shows_no_map_on_purpose(self):
+        words = self.words(code="W-FL-NO-MAP", reason="address_hidden")
+        self.assertIn("hides its address", words)
+        self.assertIn("map block shows nothing", words)
+        self.assertNotIn("address_hidden", words)
+
+    def test_a_map_with_no_reason_keeps_the_words_it_had(self):
+        for extra in ({}, {"reason": "something_new"}, {"reason": None}):
+            with self.subTest(extra=extra):
+                words = self.words(code="W-FL-NO-MAP", **extra)
+                self.assertIn("CRE Cloud has no map picture for this property", words)
+                self.assertNotIn("hides its address", words)
+
+    def test_each_reason_for_the_street_map_instead_has_its_own_words(self):
+        said = {}
+        for reason, expected in (("no_key", "no map key"), ("google_error", "Google"),
+                                 ("timeout", "ran out of time"), ("no_imagery", "no satellite pictures")):
+            words = self.words(code="W-FL-MAP-FALLBACK", reason=reason)
+            self.assertIn("showing the street map instead", words)
+            self.assertIn(expected, words)
+            self.assertNotIn(reason, words)
+            said[reason] = words
+        self.assertEqual(4, len(set(said.values())), "two reasons were worded the same")
+        self.assertIn("smaller zoom", said["no_imagery"])
+
+    def test_a_reason_nobody_knows_still_says_the_street_map_is_shown(self):
+        for extra in ({}, {"reason": "something_new"}, {"reason": 7}):
+            with self.subTest(extra=extra):
+                words = self.words(code="W-FL-MAP-FALLBACK", **extra)
+                self.assertIn("showing the street map instead", words)
+                self.assertIn("CRE Cloud could not make it", words)
+                self.assertNotIn("something_new", words)
+
+    def test_skipped_boundaries_say_how_many(self):
+        self.assertIn("1 thing drawn on the property could not be drawn on the map, so it is missing from it",
+                      self.words(code="W-FL-MAP-OVERLAY-SKIPPED", skipped=1))
+        self.assertIn("5 things drawn on the property could not be drawn on the map, so they are missing from it",
+                      self.words(code="W-FL-MAP-OVERLAY-SKIPPED", skipped=5))
+
+    def test_skipped_boundaries_with_no_count_it_can_trust_still_say_it(self):
+        for extra in ({}, {"skipped": None}, {"skipped": "many"}, {"skipped": -1}, {"skipped": 0},
+                      {"skipped": True}, {"skipped": 2.5}):
+            with self.subTest(extra=extra):
+                words = self.words(code="W-FL-MAP-OVERLAY-SKIPPED", **extra)
+                self.assertIn("some of the things drawn on the property could not be drawn on the map", words)
+                self.assertNotIn("True", words)
 
 
 if __name__ == "__main__":

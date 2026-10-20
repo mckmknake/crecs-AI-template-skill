@@ -1164,7 +1164,8 @@ front of them — "the filter buttons", "the map", "the cards".
 ## The flyer
 
 The flyer is the PDF a visitor downloads from a property: pages CRE Cloud prints for that
-property, with its photos, facts, available suites and brokers. It is designed through
+property, with its photos, facts, suites and brokers, and, when they want them, its
+features, traffic counts and demographics. It is designed through
 the same preview as the other pages and is not an Elementor page either: the plugin
 draws it from a **flyer layout document**, a tree of the flyer's blocks that says what
 each page holds, where it sits and how it looks. `scripts/crecs_flyer.py` edits that
@@ -1177,8 +1178,9 @@ a setting name; `controls --node <id>` lists the real ones.
 - **One design serves the whole site.** Every property's flyer is made from the same
   design, filled in with that property's own photos, address, sizes, suites and brokers.
   That is the default, and what to offer. A design for **one property only** is possible
-  too, but saving that choice comes with the Send step, which is not there yet (see
-  *Sending the flyer*): if they ask, say so, and design for the whole site meanwhile.
+  too: it is chosen when they press **Send** (see *Sending the flyer*), so design as
+  usual, and mention it only when they say one property has to look different from the
+  others.
 - **The designed pages** are 1 to 4 pages of US Letter paper, all landscape or all
   portrait, as they choose. Each has a **header** band at its top and a **footer** band at
   its bottom; a page can hide either.
@@ -1239,7 +1241,9 @@ headline, the logo, the name and address); a first page (the sizes and price, hi
 and the map beside the main photo, the description and the brokers); a second page (more
 photos and the table of available suites); and a footer band (the disclaimer and the
 company's name, phone and email). `crecs_flyer.py new --from landscape-classic` (or
-`portrait-classic`) starts a file from one without the preview.
+`portrait-classic`) starts a file from one without the preview. The ready-made designs
+have no features, traffic counts or demographics: they are added to a design when the
+person asks for them.
 
 ### What they can ask for
 
@@ -1248,20 +1252,37 @@ company's name, phone and email). `crecs_flyer.py new --from landscape-classic` 
 - **Header and footer**: their height, colours and what they hold.
 - **What goes on a page**: the property's name, headline and address (on one line or two);
   labels for its type, category, sub type or for sale or lease; one photo, or a grid of
-  photos; the facts (sizes, available space, year built, cap rate, rates… which ones, in
-  what order, in how many columns); highlights; the description, up to a length; the table
-  of available suites (which columns, up to 10 rows); the contacts, meaning the brokers on
+  photos; the facts (sizes, available space, land size, class, year built, cap rate,
+  rates… which ones, in what order, in how many columns); highlights; the description, up
+  to a length; the table of suites (see below); the contacts, meaning the brokers on
   the listing (photo, name, title, phone, mobile, email; stacked or side by side); the
-  map; the logo (the site's own, or an image from their media library; at most two logos
-  in the whole design, see *What it can never do*); the company's
-  name, phone and email; their own text; the disclaimer; a dividing line; blank space.
+  map (a street map or a satellite picture: *The flyer's map*); the logo (the site's own,
+  or an image from their media library; at most two logos in the whole design, see *What it
+  can never do*); the company's name, phone and email; their own text; the disclaimer; a
+  dividing line; blank space.
+- **More about the property, each a block of its own**, put on a page like any other:
+  - **Features**: the details the property has in CRE Cloud, as rows of a label and its
+    value, in one or two columns, up to 40 rows.
+  - **Traffic counts**: a row for each location with its count (up to four rows), and a
+    line under them with the year and the source.
+  - **Demographics**: a small table with a column for each distance (radius) around the
+    property and up to four rows of figures, with the year and the source under it.
+  - **The table of suites**: the available suites, up to 10 rows, or up to 20 when it
+    lists every suite, leased ones too. It can have a **Status** column that says
+    Available or Leased. A leased suite never shows its rate, and no tenant, rent or
+    lease date is ever printed.
+- **A block with nothing to show prints nothing**: the property has no such data, or it is
+  set in CRE Cloud not to show it on the flyer (features, traffic counts and demographics
+  each have such a setting). When one is empty on the example property, say so, so they do
+  not think it is broken, and look at a property that has the data (*The loop*).
 - **Arrangement**: rows and columns, each column's width as a share of its row, the space
   between them, where blocks sit in a taller row, fixed heights.
 - **Look**: colours, fonts, sizes, weights, capitals, spacing, alignment, borders, corners,
   backgrounds and padding, for each block and for the whole page. Write a colour as a
   code such as `#0a3d62` — turn "navy" into one yourself — and a see-through colour as
   `rgba()`.
-- **Words**: the labels in the facts, the suites table and the contacts; their own text;
+- **Words**: the labels in the facts, the suites table (its Status words too) and the
+  contacts, and "Year" and "Source" in the traffic counts and demographics; their own text;
   the disclaimer.
 - **Fonts: only the nine the flyer printer has** — Lato, DejaVu Sans, DejaVu Serif, Nimbus
   Sans L, Nimbus Roman No9 L, URW Gothic L, URW Bookman L, URW Palladio L and Century
@@ -1270,6 +1291,68 @@ company's name, phone and email). `crecs_flyer.py new --from landscape-classic` 
   and nothing else can be loaded, and offer the nearest: Nimbus Sans L is the closest to
   Arial, Nimbus Roman No9 L to Times, URW Palladio L to Palatino. Show it on a page before
   they decide.
+
+### The flyer's map
+
+The map block shows where the property is. Offer it as one of three, in these words:
+
+- **a street map** — the default, and it always works;
+- **a satellite map**, a photograph from above; or
+- **a satellite map with street names** on it.
+
+On either satellite kind they can also ask for the **property's boundaries**, and whatever
+has been drawn on the property in CRE Cloud, to be shown on the map. Nothing extra appears
+when nothing is drawn on the property in CRE Cloud. A street map cannot show them, so when
+they ask for boundaries, offer a satellite map. Choose the satellite kind first, then the
+boundaries: the tool refuses the other order, and says why.
+
+The map's **zoom** says how close it is: a number from 1 (the most land) to 21 (the
+closest). A smaller number shows more land and a bigger one comes closer, and the same
+number shows the same area whatever size the map has on the page, so to show more land
+change the number, not the box. The map's height only changes the shape of the picture.
+When they give no number, the map uses the zoom saved with the property in CRE Cloud. A
+street map has its own zoom and ignores the number.
+
+A property that hides its address shows no map of any kind, on purpose: the block prints
+nothing.
+
+**Satellite maps need CRE Cloud to support them.** Before you offer one, run
+`crecs_preview.py capabilities --base <site>` and read its line about maps:
+
+- It lists satellite maps: offer them.
+- It says *street map only*: say plainly that satellite maps are not available on this site
+  yet, offer the street map, and tell them whoever looks after CRE Cloud can ask for it to be
+  updated.
+- It says *not known*, or the line is missing (the site's plugin is older): do not promise a
+  satellite map. Offer the street map, and if they still want one, make the exact PDF and
+  check that the picture really is a satellite map.
+
+A design that asks for a satellite map the site cannot make is refused when the PDF is
+made: nothing was made or sent, so put the street map back and ask again.
+
+**Look at the exact PDF, always.** CRE Cloud draws a satellite map when it prints the
+flyer, so it appears only in the exact PDF: the **Exact PDF** view in the preview window,
+and the page pictures that `pdf` saves. The preview window's **Pages** view is the flyer as
+CRE Cloud is sent it, before CRE Cloud puts any map in, so it shows the map block as an empty
+box of the right size and place — for the street map too. So never judge a map, or tell them
+it is right, from the Pages view: open the page pictures first, and check that the picture
+is the kind they asked for, with the boundaries on it if they asked.
+
+CRE Cloud's warnings about the map come in words, one line each. Pass them on plainly:
+
+- *showing the street map instead* — the satellite picture could not be made, and the line
+  says why: CRE Cloud has no map key, Google could not make it, it ran out of time, or there
+  are no satellite pictures of that place at that zoom (try a smaller zoom number). It is not
+  what they designed, so say so.
+- *could not be drawn on the map* — some of what is drawn on the property is missing from it.
+- *hides its address* — no map, on purpose (above).
+
+> Your site can't make satellite maps yet — CRE Cloud has to be updated first. I've used the
+> street map for now, and we can switch to a satellite one once it's ready.
+
+> I switched the map to a satellite picture with the property's boundaries on it. I opened
+> the printed pages to check: the boundaries show and the map is clear. You can see it under
+> "Exact PDF" in the preview window; the "Pages" view leaves the map blank.
 
 ### What it can never do
 
@@ -1357,17 +1440,19 @@ After a change, or a few that belong together:
    - any warning that something did not fit (an overflow): a block cut off at the foot of
      a page, or an extra page nobody designed. Make the content smaller, move it, or give
      it a page of its own (up to 4);
-   - blocks that show nothing: a photo the property does not have, facts it lacks, a map
-     that is missing, a logo whose picture is too big (see *Things to know*);
+   - blocks that show nothing: a photo the property does not have, facts, features,
+     traffic counts or demographics it lacks, a map that is missing, or is the street map where a
+     satellite one was designed (the warnings say it), a logo whose picture
+     is too big (see *Things to know*);
    - text too small to read, colours that do not stand out from each other, a font that
      is not the one asked for;
    - the header and footer on every designed page that should have them;
    - the attachment pages: each framed by the design's header and footer where it should
      be, and in its own orientation.
 4. **Check another property** when the design depends on the data — long descriptions,
-   many suites or brokers, few photos, a hidden address: `property <slug>` shows it, then
-   `pdf` again. One design serves every property, so it has to hold for the long cases,
-   not only for the example.
+   many suites, features or brokers, few photos, a hidden address: `property <slug>`
+   shows it, then `pdf` again. One design serves every property, so it has to hold for the
+   long cases, not only for the example.
 5. **Tell them in plain words** what is different on the flyer and what you checked, and
    never tell them it is right before you have opened the pictures. The summary alone does
    not show a cut-off line.
@@ -1382,8 +1467,8 @@ next edit, because your file is a step ahead.
 ### Things to know
 
 - **A hidden address.** A property marked "do not display address" shows only its city,
-  state and zip on the flyer, never the street, and has no map: the map block shows
-  nothing, on purpose. The design has to look right without them; check one such property
+  state and zip on the flyer, never the street, and has no map, whatever kind of map the
+  design asks for: the map block shows nothing, on purpose. The design has to look right without them; check one such property
   if the site has any.
 - **Attachment pages keep their own orientation.** The designed pages share one; an
   attachment is printed as it is, so a landscape floor plan stays landscape inside a
@@ -1399,6 +1484,11 @@ next edit, because your file is a step ahead.
   say so plainly and that it is changed there.
 - **What does not fit is cut off.** A page's body has a fixed height. The warnings and your
   own look at the pages are how an overflow is found.
+- **A long table may not fit its page.** Up to 20 suites, 40 rows of features or a full
+  demographics table can be taller than the space they sit in, and what does not fit is
+  cut off. The exact PDF (`pdf`) is how to check that a long table fits the page: make it
+  with a property that has plenty of data and open the page pictures. If it does not fit,
+  show fewer rows or give the table more room, never a smaller font to squeeze it in.
 - **A photo block shows one of the property's photos by its place in the list**: a property
   with fewer photos shows nothing there.
 - **A logo's picture has to be small enough, or it is left out.** A logo prints only as a
@@ -1418,21 +1508,113 @@ next edit, because your file is a step ahead.
 
 ### Sending the flyer
 
-Sending a flyer to CRE Cloud is **not available yet** in this version. Nothing you do
-changes the flyer visitors download: they keep getting the flyer they get today. When
-sending arrives it will be a button the person presses in the preview window, like
-**Publish** for the search page and like it theirs alone: never send, publish or export a
-flyer yourself, and never try. If they ask for it to go live, say that it is not available
-yet, that it will be a button for them in the preview window, that their design is safe
-in the preview meanwhile, and that you can keep working on it:
+Nothing you do changes the flyer visitors download. Sending a design to CRE Cloud is
+**theirs alone**, like **Publish** for the search page: the person presses **Send** in the
+preview window, chooses what the design is for, and says yes in the bar that appears under
+the toolbar. The preview takes it only from that button, never from a command, and only
+from a WordPress administrator. Never send, publish or export a flyer yourself, not even
+in a browser you can drive, and never look for a way to: nothing you can run sends one,
+and the plugin refuses it if you try. Visitors keep getting the flyer they get today until
+a send has finished.
 
-> Your flyer design is ready to look at in the preview window. Sending it to CRE Cloud is
-> not available yet in this version: when it is, it will be a button you press there
-> yourself. Until then your visitors keep getting the flyer they get today, and nothing on
-> your site has changed.
+When they are happy with the design, and you have opened the pictures of its pages and
+told them what you checked (*The loop*), tell them how:
 
-Never open a property's flyer download to show a change: it is the flyer visitors get
-today, not the preview.
+> When you're happy with it, press **Send** in the preview window. It asks what the design
+> is for: **Use it for the whole site**, or **Use it only for this property**. Choose,
+> then confirm in the bar that appears. Tell me when you've done it and I'll check that
+> CRE Cloud has it. Until then your visitors keep getting the flyer they get today.
+
+Keep the buttons' names as the screen shows them: **Send**, then **Use it for the whole
+site** or **Use it only for this property**, then the yes in the bar.
+
+**Help them choose before they press**, in plain words:
+
+- **The whole site** is the usual choice. This design becomes the design every property
+  of the site uses, from now on. CRE Cloud rebuilds the flyers of the properties that
+  already have one every day, so those change within a day, not at once.
+- **Only for this property** gives that property its own design; every other property
+  keeps the site's design. A property with its own design can later go back to the site's
+  design: that is a person's choice in WordPress, in the plugin's list of designed
+  flyers, not something you do.
+
+**Only a site administrator can send.** If **Send** is missing or grey, do not look for
+another way: ask them to check that they are signed in to their website as an
+administrator.
+
+> Only a site administrator can send a flyer. If **Send** is missing or grey in your
+> preview window, could you check that you're signed in to your website with an
+> administrator account?
+
+**Check, never assume.** When they say they sent it, or seem unsure whether it worked, ask
+CRE Cloud yourself:
+
+```
+python3 scripts/crecs_preview.py sent --session-file <file>
+```
+
+It answers in plain sentences, each answer beginning with the words quoted here. Say what
+it says, in plain words, and never tell them more than it does:
+
+- **If it was not sent**, it begins *Nothing has been sent to CRE Cloud for this property
+  yet*: the send did not go through. Walk them through it again (**Send**, the choice, the
+  yes in the bar), and if the bar shows a message, ask them to read it to you.
+- **If CRE Cloud is still making it**, it begins *CRE Cloud is still making it*: it is not
+  live yet and visitors keep getting the flyer they got before. Ask again in a little
+  while; do not ask in a loop.
+- **If CRE Cloud is trying again**, it begins *CRE Cloud had a problem and is trying
+  again*, and says what went wrong: it is not live yet either. Tell them what it said, and
+  ask again later.
+- **If CRE Cloud could not make it**, it begins *CRE Cloud could not make the flyer*, with
+  the reason. Visitors keep getting the previous flyer, if there was one. Tell them the
+  reason in plain words. When it is about the design (a page too large, say), change the
+  design, look at the pages again (*The loop*) and ask them to press **Send** again; when
+  it is about CRE Cloud itself, say so and that it can be tried again later.
+- **If CRE Cloud made it**, it begins *CRE Cloud made the flyer*, with when, how many pages
+  and whether it is for the whole site or only for this property. Now it is live: visitors
+  who download this property's flyer get it, from the link it prints.
+- **If what is on screen is newer**, a line says *What is on screen in the preview is newer
+  than what was sent*, with any of the answers above. Visitors have the version that was
+  sent, not the latest. Offer to keep designing, and tell them to press **Send** again when
+  they want visitors to get the newest.
+
+Say it is live only after `sent` says CRE Cloud made it, never because they pressed the
+button; and never tell them it is live while it is still being made, being tried again or
+failed.
+
+> CRE Cloud has made your flyer: 6 pages, used for your whole site. Visitors who download
+> a property's flyer now get it, and what you see in the preview is the same design.
+
+> CRE Cloud is still making your flyer. Your visitors keep getting the flyer they got
+> before until it is finished. I'll check again in a little while.
+
+> CRE Cloud couldn't make the flyer: it says a page of the design is too large to print.
+> Your visitors still get the flyer they got before. Let me make that page smaller, and
+> then you can press **Send** again.
+
+> You have changed the design since you sent it. Visitors still get the version you sent.
+> Want me to keep working on it first? When you're happy, press **Send** again.
+
+When the answer lists things CRE Cloud noticed (its warnings), pass them on in plain words,
+as for the exact PDF in *The loop*. One is new here: a picture could not be loaded, so it
+is missing or broken in the flyer. The flyer was made anyway, and the printer does not say
+which picture: make the exact PDF with `pdf`, look for the broken picture on its pages, and
+ask them to replace that photo or logo.
+
+A site whose plugin is older than this skill has no **Send** button in the flyer preview.
+`crecs_preview.py capabilities --base <site>` says `flyer_send` is available when the site
+can; when it says it is not, or says nothing about it, tell them plainly that sending is
+not available on their site yet, that whoever looks after the site needs to update the
+plugin, that their design is safe in the preview meanwhile, and that you can keep working
+on it:
+
+> Sending isn't available on your website yet: its CRE Cloud plugin needs updating, which
+> whoever looks after your site can do. Your design is safe in the preview meanwhile, and
+> your visitors keep getting the flyer they get today.
+
+Never open a property's flyer download to check a design: before a send it is the flyer
+visitors get today, and afterwards it shows only what was sent, not what is on screen. The
+pictures of the exact PDF (`pdf`) are how you look at the design.
 
 Everything in *Plain language* applies here too: no ids, setting names or codes in front
 of them — "the header", "the photo", "the second page", "the map".
@@ -1610,7 +1792,7 @@ references/flyer/flyer-layout.json    the same, for the scripts (from the plugin
 scripts/crecs_template.py             the CLI
 scripts/crecs_search.py               the search page's CLI
 scripts/crecs_flyer.py                the flyer's CLI
-scripts/crecs_preview.py              the preview: connect, current, apply, undo, state, pdf (a flyer's exact PDF as page pictures)
+scripts/crecs_preview.py              the preview: connect, current, apply, undo, state, pdf (a flyer's exact PDF as page pictures), sent (whether a flyer was sent)
 scripts/tests/run_tests.py            offline test suite
 docs/                                 install and usage guides
 ```

@@ -140,6 +140,7 @@ class AgreesWithThePlugin(unittest.TestCase):
             "a page's room": ("E-FL-VALUE", r"^The flyer's padding and border, the header and footer heights .* 816 px a landscape page"),
             "a row's columns and gaps": ("E-FL-VALUE", r"^The [0-9]+ columns of this row, at least 40 px each"),
             "a row's widths": ("E-FL-VALUE", r"^The columns of this row"),
+            "a map's boundaries": ("E-FL-VALUE", r"^crecs_flyer_map \"boundaries\" is \"on\", which only a satellite or hybrid map can show; this map is a road map"),
             "the logo limit": ("E-FL-LIMIT", r"^The flyer has [0-9]+ Logo blocks \(crecs_flyer_logo\); it may have at most 2, because each one carries a whole image"),
             "the block and depth limit": ("E-FL-LIMIT", r"^The document has [0-9]+ blocks nested [0-9]+ deep; a flyer may have at most 150 blocks, 8 deep\.$"),
         }
@@ -202,6 +203,40 @@ class AgreesWithThePlugin(unittest.TestCase):
         self.assertGreater(inside, 0)
         self.assertGreaterEqual(short - (heights + others), least, "the rule now accepts it")
         self.assertLess(short - (heights + inside + others), least, "the rule before refused it")
+
+    def test_a_maps_boundaries_need_an_aerial_map(self):
+        # The plugin's rule (Crecs_Flyer_Layout_Validate::check_together()): the property's
+        # boundaries are drawn only on a satellite or hybrid map. A road map, chosen or by
+        # default, with boundaries "on" is refused with the plugin's own words.
+        refused = ('crecs_flyer_map "boundaries" is "on", which only a satellite or hybrid map can '
+                   'show; this map is a road map (its "map_type"), so set "map_type" to "satellite" '
+                   'or "hybrid", or "boundaries" to "off".')
+
+        def findings(settings):
+            doc = sample_document()
+            find(doc, MAP)[0]["settings"] = settings
+            return self.vocab.check(doc)
+
+        for settings in ({}, {"map_type": "road"}, {"boundaries": "off"},
+                         {"map_type": "road", "boundaries": "off"}, {"map_type": "satellite"},
+                         {"map_type": "hybrid"}, {"map_type": "hybrid", "zoom": 17, "height": 300},
+                         {"map_type": "satellite", "boundaries": "on"},
+                         {"map_type": "hybrid", "boundaries": "on", "zoom": 21}):
+            with self.subTest(accepted=settings):
+                self.assertEqual([], findings(settings))
+        for settings in ({"boundaries": "on"}, {"map_type": "road", "boundaries": "on"},
+                         {"map_type": "", "boundaries": "on"}):
+            with self.subTest(refused=settings):
+                found = findings(settings)
+                self.assertEqual([{"level": "error", "code": "E-FL-VALUE", "node": MAP,
+                                   "message": refused}], found)
+                self.assertTrue(blocking(found))
+        # A zoom outside 1 to 21 is refused by the control, on its own.
+        for zoom in (0, 22, 16.5):
+            with self.subTest(zoom=zoom):
+                found = findings({"map_type": "satellite", "zoom": zoom})
+                self.assertEqual(["E-FL-VALUE"], [f["code"] for f in found])
+                self.assertIn('"zoom"', found[0]["message"])
 
     def test_the_logo_limit_is_the_plugins(self):
         # `max` on the Logo block and limits.max_logos: the plugin's MAX_LOGOS, read from the
@@ -456,6 +491,43 @@ class Commands(unittest.TestCase):
         self.assertIn(LOGO_LIMIT % 3, err)
         self.assertEqual(before, self.raw())
         self.assertEqual(2, len(self.logos()))
+
+    def test_boundaries_on_a_street_map_are_refused_so_the_kind_of_map_is_set_first(self):
+        # What SKILL.md tells the assistant: the satellite or hybrid map first, then the
+        # boundaries. The other order leaves the design refused, and nothing is written.
+        before = self.raw()
+        code, out, err = self.run_cli("set", "--node", MAP, "--key", "boundaries", "--value", "on")
+        self.assertEqual(flyer_cli.EXIT_REFUSED, code)
+        self.assertEqual("", out)
+        self.assertIn("nothing was written", err)
+        self.assertIn("E-FL-VALUE", err)
+        self.assertIn("only a satellite or hybrid map can show", err)
+        self.assertEqual(before, self.raw())
+        for key, value in (("map_type", "hybrid"), ("boundaries", "on"), ("zoom", "17")):
+            self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", key, "--value", value)[0], key)
+        settings = self.settings(MAP)
+        self.assertEqual(("hybrid", "on", 17), (settings["map_type"], settings["boundaries"], settings["zoom"]))
+        self.assertValid()
+        # Going back to a street map while the boundaries are on is refused the same way.
+        before = self.raw()
+        code, _out, err = self.run_cli("set", "--node", MAP, "--key", "map_type", "--value", "road")
+        self.assertEqual(flyer_cli.EXIT_REFUSED, code)
+        self.assertIn("only a satellite or hybrid map can show", err)
+        self.assertEqual(before, self.raw())
+        # Taking the boundaries off first lets the street map back.
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "boundaries", "--value", "off")[0])
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "map_type", "--value", "road")[0])
+        self.assertValid()
+
+    def test_a_zoom_the_map_cannot_have_is_refused_and_nothing_is_written(self):
+        before = self.raw()
+        for value in ("0", "22", "16.5", "close"):
+            code, _out, err = self.run_cli("set", "--node", MAP, "--key", "zoom", "--value", value)
+            self.assertEqual(flyer_cli.EXIT_USAGE, code, value)
+            self.assertIn("zoom", err)
+            self.assertEqual(before, self.raw())
+        self.assertEqual(0, self.run_cli("set", "--node", MAP, "--key", "zoom", "--value", "21")[0])
+        self.assertEqual(21, self.settings(MAP)["zoom"])
 
     def test_a_logo_moved_or_changed_is_not_a_new_logo(self):
         # Two logos are allowed; moving one, or setting its height, adds no finding.

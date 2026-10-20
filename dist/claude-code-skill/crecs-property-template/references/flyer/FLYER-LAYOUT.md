@@ -61,7 +61,7 @@ The preview and sending refuse a document with any of these.
 | `E-FL-CHILDREN` | a widget holding blocks |
 | `E-FL-WITHIN` | a block directly inside a parent it does not allow |
 | `E-FL-SETTING` | a setting the block does not have |
-| `E-FL-VALUE` | a value outside its control's shape or range, or settings that do not go together: a row's column widths, a row's columns and gaps against the narrowest page, a logo's source and image, a fixed height against the padding and border inside it, a page's room between the bands |
+| `E-FL-VALUE` | a value outside its control's shape or range, or settings that do not go together: a row's column widths, a row's columns and gaps against the narrowest page, a logo's source and image, a map's boundaries without a satellite or hybrid map, a fixed height against the padding and border inside it, a page's room between the bands |
 | `E-FL-FONT` | a font the flyer printer does not have |
 
 ## Setting names
@@ -251,6 +251,8 @@ Options:
 
 Widget, may repeat; goes directly in the column (`crecs_flyer_column`).
 
+The property's facts as label and value pairs, in the order `fields` gives. `land_sf` is the land size and `property_class` the building class; like the others they show only when listed in `fields` and the property has a value for them.
+
 Parts you can style:
 
 - `facts`, the block itself (box, text): `facts_background_color`, `facts_padding`, `facts_border_width`, `facts_border_color`, `facts_border_radius`, `facts_height`, `facts_width`, `facts_color`, `facts_font_family`, `facts_font_size`, `facts_font_weight`, `facts_text_transform`, `facts_letter_spacing`, `facts_line_height`, `facts_text_align`
@@ -271,11 +273,13 @@ Texts:
 - `text_floors`: one line of at most 120 characters, printed as plain text. Unset: "Floors"
 - `text_cap_rate`: one line of at most 120 characters, printed as plain text. Unset: "Cap Rate"
 - `text_noi`: one line of at most 120 characters, printed as plain text. Unset: "NOI"
+- `text_land_sf`: one line of at most 120 characters, printed as plain text. Unset: "Land Size"
+- `text_property_class`: one line of at most 120 characters, printed as plain text. Unset: "Class"
 - `text_rates`: one line of at most 120 characters, printed as plain text. Unset: "Rate"
 
 Options:
 
-- `fields`: the facts shown, in this order; a fact the property lacks is left out. Value: a list of parts, each once, in the order they show, from `total_sf`, `sf_available`, `available_text`, `total_acres`, `available_acres`, `min_contiguous_sf`, `max_contiguous_sf`, `year_built`, `year_renovated`, `floors`, `cap_rate`, `noi`, `rates`. Unset: `total_sf`, `sf_available`, `total_acres`, `rates`.
+- `fields`: the facts shown, in this order; a fact the property lacks is left out. Value: a list of parts, each once, in the order they show, from `total_sf`, `sf_available`, `available_text`, `total_acres`, `available_acres`, `min_contiguous_sf`, `max_contiguous_sf`, `year_built`, `year_renovated`, `floors`, `cap_rate`, `noi`, `land_sf`, `property_class`, `rates`. Unset: `total_sf`, `sf_available`, `total_acres`, `rates`.
 - `columns`: label and value pairs side by side. Value: a whole number from 1 to 3. Unset: `2`.
 
 ### Highlights — `crecs_flyer_highlights`
@@ -290,6 +294,23 @@ Parts you can style:
 Options:
 
 - `max`: the most highlights (the property's infos) shown. Value: a whole number from 1 to 12. Unset: `6`.
+
+### Features — `crecs_flyer_features`
+
+Widget, may repeat; goes directly in the column (`crecs_flyer_column`).
+
+The property's infos (the ones the Highlights block lists) as rows of a label and its value, filled down the first column and then the next, up to `max`. It prints nothing when the property has no infos or hides them from the flyer.
+
+Parts you can style:
+
+- `features`, the block itself (box, text): `features_background_color`, `features_padding`, `features_border_width`, `features_border_color`, `features_border_radius`, `features_height`, `features_width`, `features_color`, `features_font_family`, `features_font_size`, `features_font_weight`, `features_text_transform`, `features_letter_spacing`, `features_line_height`, `features_text_align`
+- `label`, each label (text): `label_color`, `label_font_family`, `label_font_size`, `label_font_weight`, `label_text_transform`, `label_letter_spacing`, `label_line_height`, `label_text_align`
+- `value`, each value (text): `value_color`, `value_font_family`, `value_font_size`, `value_font_weight`, `value_text_transform`, `value_letter_spacing`, `value_line_height`, `value_text_align`
+
+Options:
+
+- `columns`: the label and value rows in one column or in two: the rows fill the first column, then the second. Value: a whole number from 1 to 2. Unset: `2`.
+- `max`: the most infos shown, each one of the property's infos with its label; with two columns a row holds two infos, so the rows are half as many. Value: a whole number from 1 to 40. Unset: `20`.
 
 ### Description — `crecs_flyer_description`
 
@@ -307,6 +328,8 @@ Options:
 
 Widget, may repeat; goes directly in the column (`crecs_flyer_column`).
 
+The property's suites in a table. With `filter` `vacant` only the vacant suites are listed, and each one's Status cell reads the `text_status_vacant` text; with `all` every suite is listed, and a suite that is not vacant shows no rate and no rate type, and reads the `text_status_occupied` text in its Status cell. The two Status texts are the cells' words, not headings: the heading of the column is `text_status`. A tenant, a rent or a lease date is never printed.
+
 Parts you can style:
 
 - `table`, the block itself (box, text): `table_background_color`, `table_padding`, `table_border_width`, `table_border_color`, `table_border_radius`, `table_height`, `table_width`, `table_color`, `table_font_family`, `table_font_size`, `table_font_weight`, `table_text_transform`, `table_letter_spacing`, `table_line_height`, `table_text_align`
@@ -322,11 +345,61 @@ Texts:
 - `text_rate`: one line of at most 120 characters, printed as plain text. Unset: "Rate"
 - `text_space_type`: one line of at most 120 characters, printed as plain text. Unset: "Space Type"
 - `text_rate_type`: one line of at most 120 characters, printed as plain text. Unset: "Rate Type"
+- `text_status`: one line of at most 120 characters, printed as plain text. Unset: "Status"
+- `text_status_vacant`: one line of at most 120 characters, printed as plain text. Unset: "Available"
+- `text_status_occupied`: one line of at most 120 characters, printed as plain text. Unset: "Leased"
 
 Options:
 
-- `columns`: the table's columns, in this order. Value: a list of parts, each once, in the order they show, from `suite`, `floor`, `size`, `rate`, `space_type`, `rate_type`. Unset: `suite`, `size`, `rate`.
-- `max_rows`: the most vacant suites listed. Value: a whole number from 1 to 10. Unset: `10`.
+- `columns`: the table's columns, in this order; `status` reads Available or Leased (the two Status texts above). Value: a list of parts, each once, in the order they show, from `suite`, `floor`, `size`, `rate`, `space_type`, `rate_type`, `status`. Unset: `suite`, `size`, `rate`.
+- `filter`: `vacant` lists the vacant suites only, `all` lists every suite, vacant or not; with `all`, a suite that is not vacant shows no rate and no rate type, and its `status` reads Leased. Value: one of `vacant`, `all`. Unset: `vacant`.
+- `max_rows`: the most suites listed. Value: a whole number from 1 to 20. Unset: `10`.
+
+### Traffic counts — `crecs_flyer_traffic`
+
+Widget, may repeat; goes directly in the column (`crecs_flyer_column`).
+
+The property's traffic counts: a row for each location with its count, up to `max_rows`, then a line with the year and the source. It prints nothing when the property has no traffic counts or hides them from the flyer.
+
+Parts you can style:
+
+- `traffic`, the block itself (box, text): `traffic_background_color`, `traffic_padding`, `traffic_border_width`, `traffic_border_color`, `traffic_border_radius`, `traffic_height`, `traffic_width`, `traffic_color`, `traffic_font_family`, `traffic_font_size`, `traffic_font_weight`, `traffic_text_transform`, `traffic_letter_spacing`, `traffic_line_height`, `traffic_text_align`
+- `location`, each location's name (text): `location_color`, `location_font_family`, `location_font_size`, `location_font_weight`, `location_text_transform`, `location_letter_spacing`, `location_line_height`, `location_text_align`
+- `count`, each count (text): `count_color`, `count_font_family`, `count_font_size`, `count_font_weight`, `count_text_transform`, `count_letter_spacing`, `count_line_height`, `count_text_align`
+- `note`, the last line, with the year and the source (text): `note_color`, `note_font_family`, `note_font_size`, `note_font_weight`, `note_text_transform`, `note_letter_spacing`, `note_line_height`, `note_text_align`
+
+Texts:
+
+- `text_year_label`: one line of at most 120 characters, printed as plain text. Unset: "Year"
+- `text_source_label`: one line of at most 120 characters, printed as plain text. Unset: "Source"
+
+Options:
+
+- `max_rows`: the most traffic counts listed, a location and its count on each row; a property has at most four. Value: a whole number from 1 to 4. Unset: `4`.
+
+### Demographics — `crecs_flyer_demographics`
+
+Widget, may repeat; goes directly in the column (`crecs_flyer_column`).
+
+The property's demographics: a table whose columns are the radii (a heading each) and whose rows are labelled figures, up to `max_rows`, then a line with the year and the source. It prints nothing when the property has no demographics or hides them from the flyer.
+
+Parts you can style:
+
+- `demographics`, the block itself (box, text): `demographics_background_color`, `demographics_padding`, `demographics_border_width`, `demographics_border_color`, `demographics_border_radius`, `demographics_height`, `demographics_width`, `demographics_color`, `demographics_font_family`, `demographics_font_size`, `demographics_font_weight`, `demographics_text_transform`, `demographics_letter_spacing`, `demographics_line_height`, `demographics_text_align`
+- `head`, the heading row's cells, which name the radii (surface, text): `head_background_color`, `head_padding`, `head_border_width`, `head_border_color`, `head_border_radius`, `head_color`, `head_font_family`, `head_font_size`, `head_font_weight`, `head_text_transform`, `head_letter_spacing`, `head_line_height`, `head_text_align`
+- `label`, each row's label, in the first column (text): `label_color`, `label_font_family`, `label_font_size`, `label_font_weight`, `label_text_transform`, `label_letter_spacing`, `label_line_height`, `label_text_align`
+- `cell`, every figure (surface, text): `cell_background_color`, `cell_padding`, `cell_border_width`, `cell_border_color`, `cell_border_radius`, `cell_color`, `cell_font_family`, `cell_font_size`, `cell_font_weight`, `cell_text_transform`, `cell_letter_spacing`, `cell_line_height`, `cell_text_align`
+- `even_row`, the figures of every second row (surface): `even_row_background_color`, `even_row_padding`, `even_row_border_width`, `even_row_border_color`, `even_row_border_radius`
+- `note`, the last line, with the year and the source (text): `note_color`, `note_font_family`, `note_font_size`, `note_font_weight`, `note_text_transform`, `note_letter_spacing`, `note_line_height`, `note_text_align`
+
+Texts:
+
+- `text_year_label`: one line of at most 120 characters, printed as plain text. Unset: "Year"
+- `text_source_label`: one line of at most 120 characters, printed as plain text. Unset: "Source"
+
+Options:
+
+- `max_rows`: the most rows of figures listed, each a label with one figure for each radius; a property has at most four. Value: a whole number from 1 to 4. Unset: `4`.
 
 ### Contacts — `crecs_flyer_contacts`
 
@@ -359,13 +432,18 @@ Options:
 
 Widget, may repeat; goes directly in the column (`crecs_flyer_column`).
 
+The property's map, as wide as its column and `height` tall. With `map_type` `road` (the default) it is the road map CRE Cloud keeps for the property. With `satellite` or `hybrid` CRE Cloud makes an aerial picture in the same box when the flyer is printed, optionally with the property's boundaries (`boundaries` `on`) and at a chosen `zoom`; for example `{"map_type": "hybrid", "boundaries": "on", "zoom": 17, "height": 300}`. A property that hides its address shows no map of any kind, aerial or road, and neither does a property with no location: the block then prints nothing.
+
 Parts you can style:
 
 - `map`, the block itself (surface): `map_background_color`, `map_padding`, `map_border_width`, `map_border_color`, `map_border_radius`
 
 Options:
 
-- `height`: the map's height in pixels; its width is the column's. Value: a whole number from 60 to 1056 pixels. Unset: `300`. It is the outer size of `map`. The padding and border of `map`, top and bottom, come out of it and must leave at least 10 pixels.
+- `height`: the map's height in pixels; its width is the column's. For a satellite or hybrid map the two together are the shape of the picture CRE Cloud makes. Value: a whole number from 60 to 1056 pixels. Unset: `300`. It is the outer size of `map`. The padding and border of `map`, top and bottom, come out of it and must leave at least 10 pixels.
+- `map_type`: the kind of map: `road` is the road map CRE Cloud keeps for the property, `satellite` an aerial photograph and `hybrid` an aerial photograph with the road names on it. CRE Cloud makes the two aerial kinds itself when the flyer is printed, so they need CRE Cloud to support them: check the session's capabilities first (`flyer_map_types` lists the map types CRE Cloud makes, and is null when that is not known), offer `satellite` and `hybrid` only when they are listed, and keep `road` when they are not. When CRE Cloud cannot make an aerial map it prints the property's road map instead, if it has one, and says so in the print's warnings. Value: one of `road`, `satellite`, `hybrid`. Unset: `road`.
+- `boundaries`: `on` also draws the property's boundaries and overlays, which are what has been drawn on the property in CRE Cloud: nothing extra appears if nothing is drawn there. Only a `satellite` or `hybrid` map can show them, so `on` with a `road` map is refused (E-FL-VALUE). Value: one of `off`, `on`. Unset: `off`.
+- `zoom`: how close an aerial map is, from 1 (the most land) to 21 (the closest); a `road` map has its own zoom and ignores this. CRE Cloud always takes about 640 pixels across at that zoom and then draws the picture at the block's size, so the same zoom shows the same area whatever the block's size, and a smaller zoom number shows more land; to show more or less land change the zoom, not the block's size. Unset, the zoom is the property's own zoom level in CRE Cloud (16 when it has none). Value: a whole number from 1 to 21.
 
 ### Logo — `crecs_flyer_logo`
 
