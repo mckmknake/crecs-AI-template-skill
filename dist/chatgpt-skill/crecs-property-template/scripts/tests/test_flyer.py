@@ -638,6 +638,53 @@ class Commands(unittest.TestCase):
         self.assertNotIn("source", self.settings(LOGO))
         self.assertValid()
 
+    def test_a_logo_can_show_one_of_the_logos_kept_in_cre_cloud(self):
+        # The four sources are the plugin's: the site's own logo, a media library image, and the
+        # company and flyer logos CRE Cloud keeps. Each says in the words of what it shows.
+        said = {"site_logo": "site's own logo", "company_logo": "company logo kept in CRE Cloud",
+                "flyer_logo": "flyer logo kept in CRE Cloud"}
+        for source, words in said.items():
+            with self.subTest(source=source):
+                code, out, err = self.run_cli("set", "--node", LOGO, "--key", "source", "--value", source)
+                self.assertEqual(0, code, err)
+                self.assertIn(words, out)
+                for other in set(said.values()) - {words}:
+                    self.assertNotIn(other, out, "it names a logo the block does not show")
+                self.assertEqual(source, self.settings(LOGO)["source"])
+                self.assertValid()
+        self.assertEqual(0, self.run_cli("unset", "--node", LOGO, "--key", "source")[0])
+        self.assertNotIn("source", self.settings(LOGO))
+        self.assertValid()
+
+    def test_a_logo_kept_in_cre_cloud_drops_an_image_number_and_an_image_number_takes_its_place(self):
+        self.assertEqual(0, self.run_cli("set", "--node", LOGO, "--key", "media_id", "--value", "6543")[0])
+        self.assertEqual(0, self.run_cli("set", "--node", LOGO, "--key", "source", "--value", "company_logo")[0])
+        self.assertNotIn("media_id", self.settings(LOGO), "the plugin refuses a media_id with this source")
+        self.assertValid()
+        # Giving an image to a block that shows a logo kept in CRE Cloud makes it a media logo.
+        code, out, err = self.run_cli("set", "--node", LOGO, "--key", "media_id", "--value", "12")
+        self.assertEqual(0, code, err)
+        self.assertEqual("media", self.settings(LOGO)["source"])
+        self.assertEqual(12, self.settings(LOGO)["media_id"])
+        self.assertValid()
+
+    def test_what_a_logo_shows_is_worded_by_its_source_when_an_image_number_is_refused(self):
+        # The plugin's refusal says which logo the block now shows; the vectors hold the exact
+        # words for the two CRE Cloud logos, this holds the rest and that nothing says "site logo"
+        # for a logo that is not the site's.
+        for source, words in (("company_logo", "the company logo kept in CRE Cloud"),
+                              ("flyer_logo", "the flyer logo kept in CRE Cloud"),
+                              ("site_logo", "the site logo"), (None, "the site logo"),
+                              ("gallery", "the site logo")):
+            with self.subTest(source=source):
+                settings = {"media_id": 12} if source is None else {"source": source, "media_id": 12}
+                doc = sample_document()
+                find(doc, LOGO)[0]["settings"] = settings
+                findings = [f for f in self.vocab.check(doc) if f["node"] == LOGO
+                            and "media_id" in f["message"] and "used only" in f["message"]]
+                self.assertEqual(1, len(findings), findings)
+                self.assertTrue(findings[0]["message"].endswith("the logo now shows %s." % words), findings[0]["message"])
+
     # -- geometry ----------------------------------------------------------------
 
     def test_an_edit_that_leaves_a_fixed_height_no_room_is_refused(self):

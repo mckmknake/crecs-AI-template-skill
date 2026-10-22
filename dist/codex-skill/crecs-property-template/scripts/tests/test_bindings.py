@@ -48,6 +48,22 @@ class TestParse(unittest.TestCase):
         self.assertEqual(tag.settings, {})
         self.assertIsNone(tag.error)
 
+    def test_a_tag_says_whether_it_carried_a_settings_string_at_all(self):
+        # Elementor gives an empty value to a tag saved without one, even when the tag
+        # takes no settings: the parser must tell "{}" from nothing.
+        bare = bindings.parse_tag('[elementor-tag id="abc1234" name="crecs-company-logo"]')
+        self.assertFalse(bare.has_settings)
+        empty = bindings.parse_tag('[elementor-tag id="abc1234" name="crecs-company-logo" settings="%7B%7D"]')
+        self.assertTrue(empty.has_settings)
+        self.assertEqual({}, empty.settings)
+        self.assertIsNone(empty.error)
+        self.assertTrue(bindings.parse_tag(VALID).has_settings)
+
+    def test_a_tag_with_no_settings_is_written_in_the_form_elementor_needs(self):
+        built = bindings.build_tag("crecs-company-logo", {}, instance_id="a1b2c3d")
+        self.assertEqual('[elementor-tag id="a1b2c3d" name="crecs-company-logo" settings="%7B%7D"]', built)
+        self.assertTrue(bindings.parse_tag(built).has_settings)
+
     def test_single_quoted_attributes_are_accepted(self):
         tag = bindings.parse_tag(
             "[elementor-tag id='c9ca4f5' name='crecs-property' "

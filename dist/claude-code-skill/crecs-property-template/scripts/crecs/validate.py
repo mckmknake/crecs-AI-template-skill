@@ -37,6 +37,28 @@ _SECRET_PATTERNS = [
 
 _PLACEHOLDER_LINKS = ("#", "", "http://#", "https://#")
 
+# The kind of dynamic tag each type of control takes, as Elementor's control classes name
+# it (the `categories` of each one's default `dynamic` setting, includes/controls/*.php).
+# The projection records only whether a control takes a tag, so the kind is read from its
+# type; a type missing here is not checked for kind.
+_CONTROL_TAG_CATEGORY = {
+    "text": "text", "textarea": "text", "wysiwyg": "text", "code": "text",
+    "url": "url", "media": "image", "gallery": "gallery", "number": "number",
+    "color": "color",
+}
+_CATEGORY_WORDS = {"text": "text", "url": "a link", "image": "a picture",
+                   "gallery": "a gallery", "number": "a number", "color": "a colour"}
+
+
+def _words_for(categories):
+    """'a picture', or 'text or a link', for the kinds a tag gives or a control takes."""
+    return " or ".join(_CATEGORY_WORDS.get(c, str(c)) for c in categories)
+
+
+def _is_plugin_tag_name(name):
+    """A name in the plugin's own namespace: crecs-..., however it is spelled."""
+    return isinstance(name, str) and name.strip().lower().replace("_", "-").startswith("crecs-")
+
 
 class Finding:
     __slots__ = ("code", "severity", "message", "element_id", "path", "control", "hint")
@@ -773,11 +795,100 @@ class _Run:
                               % (element.id, binding.control, popup_id))
             return
 
+        info = self.cat.dynamic_tag(tag.name)
+        if info and info.get("registered"):
+            self._check_registered_tag(element, binding, owner, tag, info)
+            return
+
+        if _is_plugin_tag_name(tag.name):
+            self._check_unknown_plugin_tag(element, binding, tag)
+            return
+
         self.add("I-BINDING-OTHER-TAG", INFO,
                  "%s binds %r through the %r dynamic tag, which is outside this "
                  "catalog; its payload is preserved untouched."
                  % (element.id, binding.control, tag.name),
                  element=element, control=binding.control)
+
+    def _check_registered_tag(self, element, binding, owner, tag, info):
+        """A tag the catalog registers, other than crecs-property and popup.
+
+        Today these are the two logo tags (the client's company logo and flyer logo, kept
+        in CRE Cloud): no controls, an image control. What is checked is what makes such
+        a binding print nothing, silently: settings that are not the tag's own, and a tag
+        on a control of another kind.
+        """
+        if not info.get("params"):
+            if not tag.has_settings:
+                self.add("E-BINDING-SETTINGS", ERROR,
+                         "%s binds %r through %s with no settings string. Elementor gives "
+                         "an empty value to a tag saved without one, even a tag that has "
+                         "no controls, so nothing would print."
+                         % (element.id, binding.control, tag.name),
+                         element=element, control=binding.control,
+                         hint='Save it as [elementor-tag id="<7 hex>" name="%s" '
+                              'settings="%%7B%%7D"]; `bind --tag %s` writes that form.'
+                              % (tag.name, tag.name))
+            elif tag.settings:
+                self.add("E-BINDING-PARAM", ERROR,
+                         "%s binds %r through %s with the setting(s) %s, but that tag takes "
+                         "none: its settings are the empty object."
+                         % (element.id, binding.control, tag.name,
+                            ", ".join(repr(k) for k in sorted(tag.settings))),
+                         element=element, control=binding.control)
+
+        el_kind = "widget" if element.el_type == "widget" else "element"
+        control = self.cat.control(owner, binding.control, el_type=el_kind) if owner else None
+        if control is None:
+            self.add("W-BINDING-TARGET", WARNING,
+                     "%s binds %r through %s, but the catalog has no such control on this "
+                     "element, so what the tag gives cannot be checked against it."
+                     % (element.id, binding.control, tag.name),
+                     element=element, control=binding.control)
+            return
+        if not control.accepts_dynamic:
+            self.add("W-BINDING-TARGET", WARNING,
+                     "%s binds %r, but that control is not registered as accepting "
+                     "a dynamic tag." % (element.id, binding.control),
+                     element=element, control=binding.control)
+            return
+
+        wanted = _CONTROL_TAG_CATEGORY.get(control.type)
+        kinds = info.get("categories") or []
+        if wanted and kinds and wanted not in kinds:
+            self.add("E-BINDING-CATEGORY", ERROR,
+                     "%s binds %r, a control that takes %s, through %s, which gives %s. "
+                     "Elementor offers a tag only to a control of its own kind, so this "
+                     "binding would print nothing."
+                     % (element.id, binding.control, _CATEGORY_WORDS.get(wanted, wanted),
+                        tag.name, _words_for(kinds)),
+                     element=element, control=binding.control,
+                     hint="%s belongs on a control that takes %s (an image widget's "
+                          "picture, say)." % (tag.name, _words_for(kinds)))
+
+    def _check_unknown_plugin_tag(self, element, binding, tag):
+        """A name in the plugin's own namespace that the catalog does not register.
+
+        The plugin's tags are all in the catalog, so such a name is a typo: Elementor
+        finds no tag by it and prints nothing. A tag already in the page at import is kept
+        and flagged instead, as an unknown setting is, because it may belong to a newer
+        plugin than this catalog; one introduced now is blocked.
+        """
+        suggestion = self.cat.suggest_tag(tag.name)
+        message = ("%s binds %r through a tag called %r. No such tag is registered, so the "
+                   "binding would print nothing." % (element.id, binding.control, tag.name))
+        if suggestion:
+            message += " The closest registered tag is %r." % suggestion
+        if self.preexisting(element, "__dynamic__"):
+            self.add("W-BINDING-TAG-PREEXISTING-UNKNOWN", WARNING,
+                     message + " It was already in the page, so it is kept as it is; it "
+                               "may belong to a newer version of the plugin than this "
+                               "catalog.",
+                     element=element, control=binding.control)
+            return
+        self.add("E-BINDING-TAG", ERROR, message,
+                 element=element, control=binding.control,
+                 hint="Tag names are exact: `catalog --tags` lists the registered ones.")
 
     # -- dependencies, secrets, frozen content -------------------------------
 

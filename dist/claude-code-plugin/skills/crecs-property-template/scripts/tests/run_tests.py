@@ -34,7 +34,7 @@ INTEGRATION = ["tests.test_cli", "tests.test_popup", "tests.test_delivery",
                "tests.test_bind_list", "tests.test_start_from_site",
                "tests.test_flyer_preview"]
 DOCS = ["tests.test_plain_language", "tests.test_opening_sequence",
-        "tests.test_guided_start", "tests.test_flyer_section"]
+        "tests.test_guided_start", "tests.test_flyer_section", "tests.test_own_logo"]
 CONVERSATIONAL = ["tests.test_conversational"]
 
 

@@ -23,7 +23,7 @@ A document holds exactly `type`, `version`, `title` (optional) and `content`, an
 
 Limits: at most 150 blocks, nested at most 8 deep (the flyer counts as 1, a page or band 2, its row 3, its column 4, a row inside that column 5, its column 6, a row inside that 7, its column 8). So a column can hold a row whose columns hold blocks, or another row; that second nested row's columns are at the limit and must stay empty.
 
-A design has at most 2 **Logo** blocks (`crecs_flyer_logo`): each carries a whole embedded image, and a band prints it again on every page and in both attachment frames, so more would make the request to CRE Cloud too large. The error is E-FL-LIMIT.
+A design has at most 2 **Logo** blocks (`crecs_flyer_logo`): the site logo and a media library image each carry a whole embedded picture, and a band prints it again on every page and in both attachment frames, so more would make the request to CRE Cloud too large. The limit counts every Logo block, the two logos kept in CRE Cloud (`company_logo`, `flyer_logo`) included. The error is E-FL-LIMIT.
 
 ## The page
 
@@ -53,7 +53,7 @@ The preview and sending refuse a document with any of these.
 | `E-FL-REQUIRED` | the header band or the footer band is missing |
 | `E-FL-ONCE` | a block that appears once (the flyer, the header band, the footer band) appears more often |
 | `E-FL-PAGES` | no page, or more than 4 |
-| `E-FL-LIMIT` | more than 150 blocks, or nested more than 8 deep, or more than 2 logo blocks (each carries a whole image, which every page of its band prints again, and so does each attachment frame) |
+| `E-FL-LIMIT` | more than 150 blocks, or nested more than 8 deep, or more than 2 logo blocks, whatever their source (each prints again on every page of its band and in each attachment frame, and a site logo or a media library image carries a whole picture) |
 | `E-FL-NODE` | a block without its `id`, `elType`, `widgetType`, `settings` and `elements`, or with any other key |
 | `E-FL-ID` | an id that is not 4 to 16 letters or digits, or that two blocks share |
 | `E-FL-BLOCK` | a `widgetType` the flyer does not have |
@@ -455,8 +455,8 @@ Parts you can style:
 
 Options:
 
-- `source`: `site_logo`, the site's own logo, or `media`, the media library image `media_id` names. Value: one of `site_logo`, `media`. Unset: `site_logo`.
-- `media_id`: the image's number, with `source` `media` and only then. Value: the number of an image in the site's media library, a whole number from 1 to 2147483647 (`crecs_preview.py media` lists them).
+- `source`: which logo the block shows: `site_logo`, the site's own logo; `media`, the media library image `media_id` names; `company_logo`, the company logo kept in CRE Cloud; or `flyer_logo`, the flyer logo kept in CRE Cloud (the property's own flyer theme logo if it has one, else the account's default flyer theme's). The two CRE Cloud logos follow a change made in CRE Cloud without anything being uploaded or saved again here: a flyer shows the new logo the next time it is made again: when it is sent again (give it about ten minutes after the change), or when the plugin refreshes it by itself, which it does for only a few flyers a day. When CRE Cloud's logo cannot be read just now, a flyer that is sent is not sent at all, so the flyer CRE Cloud already has is kept, and the person is told to try again in a minute; the exact PDF leaves the logo out instead. Only PNG, JPEG or GIF pictures can be used, so a logo of another kind (an SVG, say) is left out. When CRE Cloud has no such logo, nothing prints (not even an empty space). A design still has at most two Logo blocks, whichever sources they use. Value: one of `site_logo`, `media`, `company_logo`, `flyer_logo`. Unset: `site_logo`.
+- `media_id`: the image's number, with `source` `media` and only then (with any other source it is refused, E-FL-VALUE). Value: the number of an image in the site's media library, a whole number from 1 to 2147483647 (`crecs_preview.py media` lists them).
 - `height`: the logo's height in pixels. Value: a whole number from 20 to 400 pixels. Unset: `60`. It is the outer size of `logo`. The padding and border of `logo`, top and bottom, come out of it and must leave at least 10 pixels.
 
 ### Company details — `crecs_flyer_company`

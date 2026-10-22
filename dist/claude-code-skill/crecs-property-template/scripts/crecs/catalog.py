@@ -248,6 +248,23 @@ class Catalog:
     def dynamic_tag_names(self):
         return sorted(self.raw.get("dynamic_tags") or {})
 
+    def bindable_tag_names(self):
+        """The registered tags a binding may use: not the forbidden ones, and not a tag
+        another plugin owns (the popup's)."""
+        forbidden = self.dangerous_tags()
+        tags = self.raw.get("dynamic_tags") or {}
+        return sorted(n for n, t in tags.items()
+                      if t.get("registered") and n not in forbidden)
+
+    def suggest_tag(self, wanted):
+        """The registered tag a name was probably meant for: the same name with hyphens
+        for underscores first, then the closest spelling. Never a forbidden tag."""
+        names = self.bindable_tag_names()
+        normalised = str(wanted).strip().lower().replace("_", "-")
+        if normalised in names:
+            return normalised
+        return _closest(normalised, names)
+
     def property_params(self):
         return [f["param_name"] for f in self.fields.get("params", [])]
 

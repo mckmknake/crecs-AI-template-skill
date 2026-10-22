@@ -149,6 +149,13 @@ def _validate_or_raise(document, catalog, profile, workspace, what):
     return result, blocking
 
 
+def _reference_path(catalog, widget_type):
+    """The reference file that describes a widget: the plugin's own are named after the
+    widget, Elementor's core ones (image, heading, button...) carry a `core-` prefix."""
+    prefix = "core-" if catalog.is_core_widget(widget_type) and not catalog.is_crecs_widget(widget_type) else ""
+    return "references/widgets/%s%s.md" % (prefix, widget_type)
+
+
 def _element_summary(document, element):
     return {
         "id": element.id,
@@ -240,21 +247,22 @@ def cmd_inspect(args):
              "settings": b.tag.settings if b.tag else None, "error": b.error}
             for b in bindings_mod.read_element_bindings(element.settings)
         ]
-        if element.el_type == "widget" and catalog.is_crecs_widget(element.widget_type):
+        if element.el_type == "widget" and catalog.knows_widget(element.widget_type):
             payload["catalog"] = {
                 "title": catalog.widget_title(element.widget_type),
                 "relevance": catalog.relevance(element.widget_type),
                 "max_instances": catalog.max_instances(element.widget_type),
                 "controls_declared": len(catalog.controls(element.widget_type)),
-                "reference": "references/widgets/%s.md" % element.widget_type,
+                "reference": _reference_path(catalog, element.widget_type),
             }
 
         def text(p):
             print("%s  %s" % (p["id"], p.get("widgetType") or p["elType"]))
             print("  path %s" % p["path"])
             if "catalog" in p:
-                print("  %s (%s), %d controls available, reference: %s"
-                      % (p["catalog"]["title"], p["catalog"]["relevance"],
+                print("  %s%s, %d controls available, reference: %s"
+                      % (p["catalog"]["title"],
+                         " (%s)" % p["catalog"]["relevance"] if p["catalog"]["relevance"] else "",
                          p["catalog"]["controls_declared"], p["catalog"]["reference"]))
             print("  settings (%d):" % len(p["settings"]))
             for key in sorted(p["settings"]):
@@ -463,7 +471,7 @@ def cmd_add_widget(args):
                      decision=args.decision, accept_external=args.accept_external)
     payload = {"element_id": new_id, "widgetType": widget_type, "into": args.into,
                "revision": workspace.state["revision"], "validation": result.counts,
-               "reference": "references/widgets/%s.md" % widget_type}
+               "reference": _reference_path(catalog, widget_type)}
     _emit(payload, args.json,
           lambda p: print("r%s  added %s as %s inside %s\n      reference: %s"
                           % (p["revision"], p["widgetType"], p["element_id"],
@@ -545,13 +553,17 @@ def cmd_move(args):
     return EXIT_OK
 
 
-def _all_bindings(document, element_id=None):
+def _all_bindings(document, element_id=None, catalog=None):
     """Every dynamic binding in the document, in document order.
 
     The stored value travels with each row on purpose. A heading whose `title` reads
     "Add Your Heading Text Here" looks like a leftover until you can see that a binding
     replaces it at render time — that is the difference between deleting dead weight and
     deleting the property name from every page on the site.
+
+    A tag with no settings (the client's logos) has no param to show, so a registered tag
+    says what it is instead: its title in the editor and what it gives. A tag saved without
+    its settings string reads fine and prints nothing, so the row says so.
     """
     out = []
     for element in document.elements():
@@ -572,6 +584,14 @@ def _all_bindings(document, element_id=None):
                 # crecs-property carries param_name; popup carries popup.
                 row["param"] = tag.settings.get("param_name") or tag.settings.get("popup")
                 row["tag_settings"] = tag.settings
+            info = catalog.dynamic_tag(tag.name) if catalog is not None and tag is not None else None
+            if info and info.get("registered") and not info.get("params"):
+                row["tag_title"] = info.get("title")
+                row["gives"] = validate_mod._words_for(info.get("categories") or [])
+                row["problem"] = None
+                if not binding.error and not tag.has_settings:
+                    row["problem"] = ("saved without its settings string, so Elementor gives it "
+                                      "an empty value and it prints nothing")
             out.append(row)
     return out
 
@@ -581,7 +601,7 @@ def cmd_bind_list(args):
     document = workspace.load_document(accept_external=args.accept_external)
     if args.element:
         document.by_id(args.element)  # fail with the usual message if it is unknown
-    found = _all_bindings(document, args.element)
+    found = _all_bindings(document, args.element, _catalog())
 
     def render(p):
         rows = p["bindings"]
@@ -595,7 +615,13 @@ def cmd_bind_list(args):
             if r["error"]:
                 print(head + " BROKEN: " + r["error"])
                 continue
-            print(head + " %s %s" % (r["tag"] or "?", r["param"] or ""))
+            if r.get("tag_title"):
+                print(head + " %s  (%s, gives %s; no settings)"
+                      % (r["tag"], r["tag_title"], r["gives"]))
+                if r.get("problem"):
+                    print("             PROBLEM: " + r["problem"])
+            else:
+                print(head + " %s %s" % (r["tag"] or "?", r["param"] or ""))
             stored = r.get("stored_value")
             if isinstance(stored, str) and stored.strip():
                 print("             stored value, shown only if the binding resolves to "
@@ -608,7 +634,10 @@ def cmd_bind_list(args):
 def cmd_bind(args):
     if getattr(args, "list", False):
         return cmd_bind_list(args)
-    for required in ("element", "control", "param"):
+    # --param belongs to crecs-property alone: the tags with no settings (the client's
+    # logos) are bound with --tag and the control.
+    needed = ("element", "control", "param") if args.tag == "crecs-property" else ("element", "control")
+    for required in needed:
         if not getattr(args, required, None):
             raise CliError("--%s is required to write a binding. To see what is already "
                            "bound, use `bind --list`." % required)
@@ -620,10 +649,8 @@ def cmd_bind(args):
     element = document.by_id(args.element)
 
     if args.tag != "crecs-property":
-        raise CliError(
-            "this command only writes crecs-property bindings. %r is outside the "
-            "catalog; bind it in the Elementor editor if you need it." % args.tag
-        )
+        return _bind_tag_without_settings(args, workspace, catalog, profile, document, element)
+
     if args.param not in catalog.property_params():
         suggestion = catalog.suggest_param(args.param)
         message = ("%r is not a param_name that "
@@ -656,13 +683,77 @@ def cmd_bind(args):
     workspace.commit(document,
                      "bind %s.%s -> %s" % (element.id, args.control, args.param),
                      decision=args.decision, accept_external=args.accept_external)
-    payload = {"element_id": element.id, "control": args.control,
+    payload = {"element_id": element.id, "control": args.control, "tag": "crecs-property",
                "param_name": args.param, "revision": workspace.state["revision"],
                "shortcode": element.settings["__dynamic__"][args.control]}
     _emit(payload, args.json,
           lambda p: print("r%s  bound %s.%s to crecs-property param_name=%s"
                           % (p["revision"], p["element_id"], p["control"],
                              p["param_name"])))
+    return EXIT_OK
+
+
+def _bind_tag_without_settings(args, workspace, catalog, profile, document, element):
+    """Bind a registered tag that has no controls: today the client's company logo and
+    flyer logo, both pictures. The shortcode is written in the form Elementor needs, with
+    its empty settings string, because a binding saved without one gives an empty value.
+
+    Everything wrong is refused before anything is written: a name the catalog does not
+    register, a tag that is never bound (the forbidden one, or the popup's, which has its
+    own command), a --param on a tag that takes none, a control the widget does not have,
+    one that takes no tag, or one of another kind than the tag gives (the validator's
+    E-BINDING-CATEGORY).
+    """
+    tag = args.tag
+    forbidden = catalog.dangerous_tags()
+    if tag in forbidden:
+        raise CliError("%s is never bound. %s" % (tag, forbidden[tag].get("reason") or ""))
+    if tag == "popup":
+        raise CliError("popup bindings have their own command, because the popup has to be "
+                       "declared in the target profile: `popup --element <id> --control "
+                       "<control> --set <popup id>`.")
+    info = catalog.dynamic_tag(tag)
+    if not info or not info.get("registered"):
+        suggestion = catalog.suggest_tag(tag)
+        message = "%r is not a dynamic tag this catalog registers." % tag
+        if suggestion:
+            message += " Did you mean %r?" % suggestion
+        message += "\nRun `catalog --tags` for the tags a binding may use."
+        raise CliError(message)
+    if info.get("params"):
+        raise CliError("%s takes settings this command does not know how to fill." % tag)
+    if args.param:
+        raise CliError("%s takes no --param: it has no settings. Bind it with --tag %s and "
+                       "the control alone." % (tag, tag))
+
+    control, _key = _resolve_control(catalog, element, args.control)
+    if not control.accepts_dynamic:
+        raise CliError("%r on %s is not a control that takes a dynamic tag, so a binding "
+                       "there would do nothing. For %s use a control that takes %s (an "
+                       "image widget's `image`, say)."
+                       % (args.control, element.widget_type or element.el_type, tag,
+                          validate_mod._words_for(info.get("categories") or [])))
+
+    bindings_mod.set_element_binding(element.settings, args.control, tag, {})
+    result, blocking = _validate_or_raise(document, catalog, profile, workspace, "bind")
+    own = [f for f in blocking
+           if f.element_id == element.id and f.control == args.control]
+    if own:
+        raise CliError("refused, nothing was written:\n" + "\n".join(
+            "  [%s] %s%s" % (f.code, f.message, "\n      hint: " + f.hint if f.hint else "")
+            for f in own
+        ))
+
+    workspace.commit(document,
+                     "bind %s.%s -> %s" % (element.id, args.control, tag),
+                     decision=args.decision, accept_external=args.accept_external)
+    payload = {"element_id": element.id, "control": args.control, "tag": tag,
+               "param_name": None, "revision": workspace.state["revision"],
+               "shortcode": element.settings["__dynamic__"][args.control]}
+    _emit(payload, args.json,
+          lambda p: print("r%s  bound %s.%s to %s (%s)"
+                          % (p["revision"], p["element_id"], p["control"], p["tag"],
+                             info.get("title") or "no settings")))
     return EXIT_OK
 
 
@@ -1063,6 +1154,29 @@ def cmd_catalog(args):
         _emit(payload, args.json, text)
         return EXIT_OK
 
+    if args.tags:
+        rows = []
+        for name in catalog.bindable_tag_names():
+            info = catalog.dynamic_tag(name) or {}
+            rows.append({
+                "name": name,
+                "title": info.get("title"),
+                "gives": validate_mod._words_for(info.get("categories") or []),
+                "takes_settings": bool(info.get("params")),
+            })
+        payload = {"tags": rows, "count": len(rows)}
+
+        def text(p):
+            print("%d dynamic tags a binding may use (`bind --tag <name>`):" % p["count"])
+            for row in p["tags"]:
+                print("  %-22s %-26s gives %-18s %s"
+                      % (row["name"], row["title"] or "", row["gives"],
+                         "a field is chosen with --param" if row["takes_settings"]
+                         else "no settings, no --param"))
+
+        _emit(payload, args.json, text)
+        return EXIT_OK
+
     if args.list_widgets:
         rows = []
         for name in catalog.relevant_widget_names():
@@ -1105,7 +1219,7 @@ def cmd_catalog(args):
             "sections": catalog.sections(name),
             "legacy_aliases": catalog.legacy_aliases(name),
             "naming_hazards": catalog.naming_hazards(name) or [],
-            "reference": "references/widgets/%s.md" % name,
+            "reference": _reference_path(catalog, name),
             "control_count": len(controls),
         }
         if args.controls:
@@ -1147,7 +1261,7 @@ def cmd_catalog(args):
         _emit(payload, args.json, text)
         return EXIT_OK
 
-    raise CliError("catalog needs one of --list-widgets, --widget or --params")
+    raise CliError("catalog needs one of --list-widgets, --widget, --params or --tags")
 
 
 def cmd_selftest(args):
@@ -1360,15 +1474,20 @@ def build_parser():
     p.add_argument("--profile")
     p.set_defaults(func=cmd_move)
 
-    p = add("bind", "Bind a control to a crecs-property field, or list what is bound.",
-            mutating=True)
+    p = add("bind", "Bind a control to a crecs-property field or to one of the client's "
+                    "logos, or list what is bound.", mutating=True)
     p.add_argument("--list", action="store_true", dest="list",
                    help="show every binding in the document instead of writing one; "
                         "with --element, only that element's")
     p.add_argument("--element")
-    p.add_argument("--control", help="the control to bind, e.g. title")
-    p.add_argument("--param", help="crecs-property param_name")
-    p.add_argument("--tag", default="crecs-property")
+    p.add_argument("--control", help="the control to bind, e.g. title, or an image "
+                                     "widget's image for a logo")
+    p.add_argument("--param", help="crecs-property param_name; a tag with no settings "
+                                   "takes none")
+    p.add_argument("--tag", default="crecs-property",
+                   help="crecs-property (the default, with --param), or a tag with no "
+                        "settings such as crecs-company-logo or crecs-flyer-logo; "
+                        "`catalog --tags` lists them")
     p.add_argument("--force", action="store_true",
                    help="bind even a non-scalar field")
     p.add_argument("--profile")
@@ -1427,6 +1546,8 @@ def build_parser():
     p.add_argument("--section", help="only controls in this section")
     p.add_argument("--params", action="store_true",
                    help="list the crecs-property param_name universe")
+    p.add_argument("--tags", action="store_true",
+                   help="list the dynamic tags a binding may use, and what each gives")
     p.set_defaults(func=cmd_catalog)
 
     p = add("coverage", "Report which widgets and control families are exercised.",

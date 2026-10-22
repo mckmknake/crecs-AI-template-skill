@@ -27,6 +27,9 @@ read as the search page's, and `connect` moves it to its new name.
 Usage:
     crecs_preview.py connect [--from box.txt]   (the box's text on standard input)
     crecs_preview.py capabilities --base https://site
+                                    (sends the site's saved session, when there is one, so the site
+                                     can say whether CRE Cloud keeps the client's logos; never to
+                                     another site)
     crecs_preview.py state
     crecs_preview.py current --out doc.json
     crecs_preview.py apply --document doc.json [--key my-key]
@@ -190,7 +193,13 @@ class Client:
     # -- the nine operations ---------------------------------------------
 
     def capabilities(self) -> dict:
-        return self._call("GET", "/capabilities")
+        """What the site says it can do. With a session (an id and its token) the site knows who
+        is asking and tells what it keeps for someone who may edit templates (whether CRE Cloud has
+        the client's logos) instead of "not known"; with none it is the public answer."""
+        path = "/capabilities"
+        if self.session_id and self.token:
+            path += "?id=" + urllib.parse.quote(self.session_id)
+        return self._call("GET", path)
 
     def resume(self) -> dict:
         return self._call("GET", self._session_path())
@@ -591,6 +600,43 @@ def load_session(path: Path | None, base: str | None, kind: str | None = None,
     return (base or data.get("base", "")), data["id"], data["token"]
 
 
+def capabilities_session(base: str, path: Path | None, kind: str | None, folder: Path,
+                         announce=None) -> tuple[str, str]:
+    """The session the `capabilities` command sends, as (id, token); ("", "") when it sends none.
+
+    The site tells someone who holds a valid session more than it tells a stranger (whether CRE
+    Cloud keeps the client's logos), so the command sends the saved one. It never stops to ask
+    which: any session of a site says the same, so it takes the one of the wanted `kind`, else
+    the first by kind. A session goes only to the site that issued it: one for another address is
+    left out, and `announce` says so. A file that was named and cannot be used is an error, as for
+    every command; one only found in the folder and unusable is passed over.
+    """
+    want = (urllib.parse.urlparse(base).hostname or "").lower()
+    explicit = path is not None
+    if path is None:
+        found = [e for e in saved_sessions(folder, base) if not kind or e["kind"] == kind]
+        if not found:
+            return "", ""
+        path = min(found, key=lambda e: KINDS.index(e["kind"]))["path"]
+    elif not path.is_file():
+        raise Transport(f"session file not found: {path}")
+
+    data = _read_session_file(path)
+    if not data or not data.get("id") or not data.get("token"):
+        if explicit:
+            raise Transport(f"session file unreadable or incomplete: {path}")
+        return "", ""
+    if explicit and kind and session_kind(data) != kind:
+        raise Transport(f"{path} holds a {KIND_LABEL[session_kind(data)]} preview session, "
+                        f"not a {KIND_LABEL[kind]} one")
+    site = (urllib.parse.urlparse(str(data.get("base", ""))).hostname or "").lower()
+    if site and want and site != want:
+        if announce:
+            announce(f"not sending the session in {path} to {want}: it is for {site}")
+        return "", ""
+    return str(data["id"]), str(data["token"])
+
+
 # ---------------------------------------------------------------------------------------
 # a flyer, in words
 #
@@ -755,6 +801,42 @@ def map_types_words(value) -> str:
                 "to have it updated")
     return ("available: " + ", ".join(made) + ". CRE Cloud makes the satellite ones when it prints the "
             "flyer, so they show only in the exact PDF")
+
+
+def brand_logos_words(value) -> str:
+    """The `capabilities` line about the client's logos kept in CRE Cloud, from the plugin's
+    `brand_logos`: `{company, flyer}`, each true or false, or null when that is not known (CRE
+    Cloud could not be reached, it predates the logos, or a public call read an empty cache).
+
+    Each logo is read by itself: anything but true or false is not known. A site whose plugin
+    predates the logos sends no `brand_logos` at all, and the caller then prints no line.
+    """
+    got = value if isinstance(value, dict) else {}
+    company, flyer = (got.get(key) if isinstance(got.get(key), bool) else None for key in ("company", "flyer"))
+    follows = ("It follows any change made in CRE Cloud by itself: a page shows the new logo within about "
+               "ten minutes (longer if the site keeps its pages in a cache), a flyer when it is sent again "
+               "(give it ten minutes after the change) or when the plugin refreshes it by itself, which it "
+               "does for a few flyers a day")
+    if company is True and flyer is True:
+        return ("available: CRE Cloud keeps the company logo and a flyer logo for this site, so a template "
+                "can show either one instead of an uploaded picture. " + follows)
+    if company is False and flyer is False:
+        return ("none: CRE Cloud keeps neither a company logo nor a flyer logo for this site, so use the "
+                "upload route for a logo, or have the person add theirs in CRE Cloud first")
+    if company is None and flyer is None:
+        return ("not known: CRE Cloud has not said whether it keeps a company logo or a flyer logo for this "
+                "site. Use the upload route; if the person wants the logo kept in CRE Cloud, try it and look "
+                "at the preview to see whether it shows")
+    if company is True and flyer is False:
+        return ("company logo only: CRE Cloud keeps the company logo but no flyer logo, so a template can "
+                "show the company logo instead of an uploaded picture, and a flyer needs the upload route "
+                "for any other logo. " + follows)
+    if company is False and flyer is True:
+        return ("flyer logo only: CRE Cloud keeps a flyer logo but no company logo, so a flyer can show the "
+                "flyer logo, and a page needs the upload route for the company's logo. " + follows)
+    status = {True: "available", False: "none kept", None: "not known"}
+    return (f"company logo {status[company]}, flyer logo {status[flyer]}. Use a logo kept in CRE Cloud "
+            "only where it is available, and the upload route for the other. " + follows)
 
 
 class Busy(Exception):
@@ -1258,7 +1340,11 @@ def main(argv=None) -> int:
         if args.cmd == "capabilities":
             if not args.base:
                 raise Transport("capabilities needs --base")
-            client = Client(args.base, insecure=args.insecure)
+            # The saved session, when there is one, so the site can say what it tells only someone
+            # who may edit templates (the client's logos). Without one, the public answer as always.
+            sid, token = capabilities_session(args.base, args.session_file, kind, folder,
+                                              announce=lambda message: print(message, file=sys.stderr))
+            client = Client(args.base, sid, token, insecure=args.insecure)
             caps = client.capabilities()
             if caps.get("contract") != CONTRACT:
                 print(
@@ -1268,9 +1354,10 @@ def main(argv=None) -> int:
             if args.json:
                 print(json.dumps(caps, indent=1))
             else:
-                # flyer_map_types is said in words below, never as a raw value (null included).
+                # flyer_map_types and brand_logos are said in words below, never as a raw value
+                # (null included).
                 lines = [f"{k:26} {v}" for k, v in caps.items()
-                         if not isinstance(v, (dict, list)) and k != "flyer_map_types"]
+                         if not isinstance(v, (dict, list)) and k not in ("flyer_map_types", "brand_logos")]
                 kinds = caps.get("session_kinds")
                 if isinstance(kinds, list) and kinds:
                     lines.append(f"{'session_kinds':26} " + ", ".join(str(k) for k in kinds))
@@ -1286,6 +1373,8 @@ def main(argv=None) -> int:
                         "not available: " + str(send.get("reason") or "no reason given")))
                 if "flyer_map_types" in caps:
                     lines.append(f"{'flyer_map_types':26} " + map_types_words(caps["flyer_map_types"]))
+                if "brand_logos" in caps:
+                    lines.append(f"{'brand_logos':26} " + brand_logos_words(caps["brand_logos"]))
                 print("\n".join(lines))
             return 0
 

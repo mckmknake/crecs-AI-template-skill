@@ -324,6 +324,149 @@ class TestBindings(unittest.TestCase):
         self.assertIn("E-DEP-PLACEHOLDER-LINK", codes(run(env)))
 
 
+def _logo_tag(name="crecs-company-logo", settings="%7B%7D", instance_id="a1b2c3d"):
+    """The saved form Elementor writes for a tag with no controls."""
+    if settings is None:
+        return '[elementor-tag id="%s" name="%s"]' % (instance_id, name)
+    return '[elementor-tag id="%s" name="%s" settings="%s"]' % (instance_id, name, settings)
+
+
+def _with_image_widget(env, tag=None, control="image"):
+    """Add an image widget bound through `tag` on `control` to the minimal document."""
+    column = env["content"][0]["elements"][0]
+    column["elements"].append({
+        "id": "1000009", "elType": "widget", "widgetType": "image", "isInner": False,
+        "settings": {"image": {"url": "", "id": ""}, "__dynamic__": {control: tag or _logo_tag()}},
+        "elements": [],
+    })
+    return env
+
+
+class TestRegisteredTagsOtherThanProperty(unittest.TestCase):
+    """The catalog's registered tags are checked, not just waved through as 'outside the
+    catalog': the two logo tags (the client's company logo and flyer logo, kept in CRE
+    Cloud) have no controls, take an image control, and give an empty value to a binding
+    saved without a settings string. A typo in a tag's name prints nothing, silently."""
+
+    def findings(self, env, code):
+        return [f for f in run(env).findings if f.code == code]
+
+    def new_errors(self, env):
+        """The error codes this document has beyond what the plain minimal one has."""
+        return sorted(set(f.code for f in run(env).findings if f.severity == "ERROR")
+                      - set(f.code for f in run(minimal_envelope()).findings if f.severity == "ERROR"))
+
+    def test_the_catalog_registers_both_logo_tags_as_image_tags_with_no_params(self):
+        # What the branch below stands on: if the catalog stops saying so, the rest means
+        # nothing.
+        for name in ("crecs-company-logo", "crecs-flyer-logo"):
+            tag = CATALOG.dynamic_tag(name)
+            self.assertIsNotNone(tag, name)
+            self.assertTrue(tag["registered"])
+            self.assertEqual(["image"], tag["categories"])
+            self.assertEqual([], tag["params"])
+            self.assertIn(name, CATALOG.dynamic_tag_names())
+
+    def test_a_logo_tag_on_an_image_control_is_checked_and_passes(self):
+        for name in ("crecs-company-logo", "crecs-flyer-logo"):
+            with self.subTest(tag=name):
+                env = _with_image_widget(minimal_envelope(), _logo_tag(name))
+                self.assertEqual([], self.new_errors(env))
+                self.assertEqual([], [c for c in codes(run(env)) if "BINDING" in c and c != "W-BINDING-NON-SCALAR"])
+
+    def test_a_typo_in_a_tags_name_is_an_error_that_names_the_real_tag(self):
+        for typo in ("crecs-company-logos", "crecs-company-logo2", "crecs_company_logo", "crecs-compnay-logo",
+                     "crecs-flyer-logos"):
+            with self.subTest(typo=typo):
+                found = self.findings(_with_image_widget(minimal_envelope(), _logo_tag(typo)), "E-BINDING-TAG")
+                self.assertEqual(1, len(found), typo)
+                self.assertEqual("ERROR", found[0].severity)
+                self.assertIn(typo, found[0].message)
+                self.assertTrue("crecs-company-logo" in found[0].message or "crecs-flyer-logo" in found[0].message,
+                                "it does not say which tag was meant: " + found[0].message)
+                self.assertEqual("image", found[0].control)
+
+    def test_a_tag_of_another_plugin_is_still_only_information(self):
+        # Elementor's own and other plugins' tags are outside the catalog and are kept
+        # untouched: only the plugin's own names are closed.
+        result = run(_with_image_widget(minimal_envelope(), _logo_tag("post-featured-image")))
+        self.assertIn("I-BINDING-OTHER-TAG", codes(result))
+        self.assertNotIn("E-BINDING-TAG", codes(result))
+
+    def test_an_unknown_tag_that_was_already_in_the_page_is_kept_and_flagged_not_blocked(self):
+        env = _with_image_widget(minimal_envelope(), _logo_tag("crecs-from-a-newer-plugin"))
+        result = run(env, baseline_keys={"1000009::__dynamic__"})
+        self.assertNotIn("E-BINDING-TAG", codes(result))
+        self.assertEqual("WARNING", severity_of(result, "W-BINDING-TAG-PREEXISTING-UNKNOWN"))
+
+    def test_an_image_tag_on_a_text_control_is_an_error_about_the_kind(self):
+        env = minimal_envelope()
+        heading = find(env, el_type="widget", widget_type="heading")
+        heading["settings"]["__dynamic__"] = {"title": _logo_tag()}
+        found = self.findings(env, "E-BINDING-CATEGORY")
+        self.assertEqual(1, len(found), codes(run(env)))
+        self.assertEqual("ERROR", found[0].severity)
+        self.assertEqual("title", found[0].control)
+        self.assertIn("picture", found[0].message)
+        self.assertIn("text", found[0].message)
+
+    def test_an_image_tag_on_a_link_control_is_an_error_about_the_kind(self):
+        env = minimal_envelope()
+        button = find(env, el_type="widget", widget_type="button")
+        button["settings"]["__dynamic__"] = {"link": _logo_tag("crecs-flyer-logo")}
+        self.assertEqual(1, len(self.findings(env, "E-BINDING-CATEGORY")))
+
+    def test_the_kind_is_read_from_the_control_not_from_its_name(self):
+        # The image widget's caption takes text; its picture takes an image.
+        env = _with_image_widget(minimal_envelope(), _logo_tag(), control="caption")
+        self.assertEqual(1, len(self.findings(env, "E-BINDING-CATEGORY")))
+        ok = _with_image_widget(minimal_envelope(), _logo_tag(), control="image")
+        self.assertEqual([], self.findings(ok, "E-BINDING-CATEGORY"))
+
+    def test_a_stray_param_on_a_tag_without_params_is_an_error(self):
+        # {"param_name":"property_name"}, URL-encoded
+        stray = "%7B%22param_name%22%3A%22property_name%22%7D"
+        found = self.findings(_with_image_widget(minimal_envelope(), _logo_tag(settings=stray)), "E-BINDING-PARAM")
+        self.assertEqual(1, len(found))
+        self.assertEqual("ERROR", found[0].severity)
+        self.assertIn("param_name", found[0].message)
+        self.assertEqual("image", found[0].control)
+
+    def test_a_binding_saved_without_its_settings_string_is_an_error(self):
+        # Elementor gives an empty value to a tag without the settings attribute, so the
+        # logo would never show: the one form that reads fine and prints nothing.
+        env = _with_image_widget(minimal_envelope(), _logo_tag(settings=None))
+        found = self.findings(env, "E-BINDING-SETTINGS")
+        self.assertEqual(1, len(found), codes(run(env)))
+        self.assertEqual("ERROR", found[0].severity)
+        self.assertIn("settings", found[0].message)
+
+    def test_the_empty_object_in_any_spelling_is_accepted(self):
+        for spelling in ("%7B%7D", "%7B %7D", "{}"):
+            with self.subTest(settings=spelling):
+                env = _with_image_widget(minimal_envelope(), _logo_tag(settings=spelling))
+                self.assertEqual([], self.new_errors(env))
+
+    def test_a_tag_on_a_control_that_takes_no_tag_is_a_warning(self):
+        env = _with_image_widget(minimal_envelope(), _logo_tag(), control="image_size")
+        self.assertIn("W-BINDING-TARGET", codes(run(env)))
+
+    def test_the_forbidden_tag_is_still_refused_first(self):
+        env = minimal_envelope()
+        heading = find(env, el_type="widget", widget_type="heading")
+        heading["settings"]["__dynamic__"] = {"title": _logo_tag("crecs-test")}
+        self.assertIn("E-BINDING-FORBIDDEN-TAG", codes(run(env)))
+        self.assertNotIn("E-BINDING-CATEGORY", codes(run(env)))
+
+    def test_a_stored_picture_beside_the_binding_is_harmless(self):
+        # The image widget keeps a static picture next to its binding (Elementor writes
+        # one); the binding wins, and that is no finding.
+        env = _with_image_widget(minimal_envelope())
+        find(env, el_type="widget", widget_type="image")["settings"]["image"] = {
+            "url": "/wp-content/plugins/elementor/assets/images/placeholder.png", "id": ""}
+        self.assertEqual([], self.new_errors(env))
+
+
 class TestFrozenContent(unittest.TestCase):
     def test_an_empty_loader_slug_blocks_as_an_unresolved_dependency(self):
         env = minimal_envelope()

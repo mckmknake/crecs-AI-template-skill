@@ -257,6 +257,129 @@ class Commands(unittest.TestCase):
         self.assertEqual(search_cli.EXIT_USAGE, code)
         self.assertIn("sits in", err)
 
+    # -- the logo block: the client's logo kept in CRE Cloud --------------------------
+
+    def reset(self):
+        """The built-in layout again, in the same file."""
+        with open(self.path, "w", encoding="utf-8") as fh:
+            json.dump(self.vocab.builtin, fh)
+
+    def add_logo(self, *where, block_id=None):
+        argv = ["--json", "add-block", "--block", "crecs_search_logo"] + list(where)
+        if block_id:
+            argv += ["--id", block_id]
+        return self.run_cli(*argv)
+
+    def test_a_logo_is_added_where_the_person_wants_it_and_the_page_stays_valid(self):
+        code, out, err = self.add_logo("--into", PAGE, "--position", "0", block_id="logo0001")
+        self.assertEqual(0, code, err)
+        result = json.loads(out)
+        self.assertEqual({"node": "logo0001", "block": "Logo", "added": True}, {k: result[k] for k in ("node", "block", "added")})
+        page = find(self.doc(), PAGE)[0]
+        self.assertEqual("logo0001", page["elements"][0]["id"])
+        node = page["elements"][0]
+        self.assertEqual(("widget", "crecs_search_logo"), (node["elType"], node["widgetType"]))
+        self.assertEqual([], self.vocab.check(self.doc()))
+        # Without an id, a new one is made.
+        code, out, err = self.add_logo("--after", "logo0001")
+        self.assertEqual(0, code, err)
+        made = json.loads(out)["node"]
+        self.assertTrue(self.vocab.is_id(made))
+        self.assertEqual(["logo0001", made], [n["id"] for n in find(self.doc(), PAGE)[0]["elements"][:2]])
+
+    def test_a_logo_takes_its_source_and_height_like_any_other_setting(self):
+        self.add_logo("--into", PAGE, "--position", "0", block_id="logo0001")
+        for key, value in (("source", "flyer_logo"), ("height", "80"), ("logo_text_align", "center")):
+            code, _out, err = self.run_cli("set", "--node", "logo0001", "--key", key, "--value", value)
+            self.assertEqual(0, code, err)
+        self.assertEqual({"source": "flyer_logo", "height": 80, "logo_text_align": "center"}, self.settings("logo0001"))
+        self.assertEqual(0, self.run_cli("set", "--node", "logo0001", "--key", "logo_text_align",
+                                         "--device", "mobile", "--value", "left")[0])
+        self.assertEqual([], self.vocab.check(self.doc()))
+        for key, value, words in (("source", "https://example.com/logo.png", "must be one of: company_logo, flyer_logo"),
+                                  ("height", "10", "from 16 to 300")):
+            before = self.raw()
+            code, _out, err = self.run_cli("set", "--node", "logo0001", "--key", key, "--value", value)
+            self.assertEqual(search_cli.EXIT_USAGE, code)
+            self.assertIn(words, err)
+            self.assertEqual(before, self.raw())
+        code, _out, err = self.run_cli("set", "--node", "logo0001", "--key", "url", "--value", "x")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("no url setting", err)
+
+    def test_a_logo_goes_in_the_page_the_main_area_the_results_area_or_a_box_never_the_filters(self):
+        for where in (PAGE, WRAPPER, LISTINGS):
+            with self.subTest(into=where):
+                self.reset()
+                code, _out, err = self.add_logo("--into", where)
+                self.assertEqual(0, code, err)
+                self.assertEqual([], self.vocab.check(self.doc()))
+        self.reset()
+        code, out, _err = self.run_cli("--json", "add-box", "--into", PAGE)
+        self.assertEqual(0, self.add_logo("--into", json.loads(out)["node"])[0])
+        self.assertEqual([], self.vocab.check(self.doc()))
+
+        self.reset()
+        before = self.raw()
+        code, _out, err = self.add_logo("--into", FILTERS)
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertIn("E-SL-NOT-WITHIN", err)
+        self.assertIn("inside the filters", err)
+        self.assertEqual(before, self.raw(), "a refused logo must leave the file alone")
+        code, _out, err = self.add_logo("--before", KEYWORD)
+        self.assertEqual(search_cli.EXIT_REFUSED, code)
+        self.assertEqual(before, self.raw())
+
+    def test_the_logo_repeats_one_for_computers_and_one_for_phones(self):
+        self.assertEqual(0, self.add_logo("--into", PAGE, "--position", "0", block_id="logo0001")[0])
+        self.assertEqual(0, self.add_logo("--after", "logo0001", block_id="logo0002")[0])
+        self.assertEqual(0, self.run_cli("hide", "--node", "logo0001", "--device", "mobile")[0])
+        self.assertEqual(0, self.run_cli("set", "--node", "logo0002", "--key", "source", "--value", "flyer_logo")[0])
+        for device in ("desktop", "tablet"):
+            self.assertEqual(0, self.run_cli("hide", "--node", "logo0002", "--device", device)[0])
+        self.assertEqual([], self.vocab.check(self.doc()))
+
+    def test_only_a_block_that_may_repeat_is_added(self):
+        before = self.raw()
+        code, _out, err = self.run_cli("add-block", "--block", "crecs_search_map", "--into", PAGE)
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("once", err)
+        code, _out, err = self.run_cli("add-block", "--block", "crecs_search_box", "--into", PAGE)
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("add-box", err)
+        code, _out, err = self.run_cli("add-block", "--block", "crecs_search_logoo", "--into", PAGE)
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("crecs_search_logo", err, "it does not say which block was meant")
+        code, _out, err = self.run_cli("add-block", "--block", "crecs_search_logo")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("say where", err)
+        code, _out, err = self.run_cli("add-block", "--block", "crecs_search_logo", "--into", PAGE, "--id", "x")
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("4 to 16", err)
+        self.assertEqual(before, self.raw())
+
+    def test_a_logo_can_be_taken_off_again_and_nothing_else_can(self):
+        self.assertEqual(0, self.add_logo("--into", PAGE, "--position", "0", block_id="logo0001")[0])
+        self.assertEqual(0, self.run_cli("remove-block", "--node", "logo0001")[0])
+        self.assertEqual(self.vocab.builtin["content"], self.doc()["content"])
+        for node, words in ((MAP, "part of how the page works"),):
+            code, _out, err = self.run_cli("remove-block", "--node", node)
+            self.assertEqual(search_cli.EXIT_USAGE, code)
+            self.assertIn(words, err)
+        code, out, _err = self.run_cli("--json", "add-box", "--into", WRAPPER)
+        code, _out, err = self.run_cli("remove-block", "--node", json.loads(out)["node"])
+        self.assertEqual(search_cli.EXIT_USAGE, code)
+        self.assertIn("remove-box", err)
+
+    def test_the_block_list_says_the_logo_may_be_added(self):
+        code, out, _err = self.run_cli("--json", "blocks")
+        self.assertEqual(0, code)
+        logo = [b for b in json.loads(out) if b["type"] == "crecs_search_logo"]
+        self.assertEqual(1, len(logo))
+        self.assertEqual("Logo", logo[0]["label"])
+        for flag in ("optional", "repeatable", "has options"):
+            self.assertIn(flag, logo[0]["flags"])
+
     def test_hiding_only_where_the_page_allows_it(self):
         code, out, _err = self.run_cli("--json", "add-box", "--into", WRAPPER)
         box = json.loads(out)["node"]

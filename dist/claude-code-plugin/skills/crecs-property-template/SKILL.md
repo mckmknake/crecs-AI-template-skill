@@ -348,25 +348,38 @@ Ask whether their site header already shows their logo. If it does, the property
 usually sits under that header, so a second logo is not needed — say so and ask if they
 still want one on the page.
 
-If they want it placed:
+If they want it placed, **use the logo CRE Cloud already keeps for them**, not a file
+from their computer: it is the same logo everywhere, and when they change it in CRE Cloud
+this page shows the new one by itself (*The client's own logo*, below, says how to check
+that it is there and what to tell them).
 
-1. Open **Media → Add New** for them and ask them to drag their logo file onto that page
-   — choosing a file on their own computer is the one part you cannot do — and to tell
-   you when it has finished.
-2. Find it yourself. In the browser, open **Media**, click the file they uploaded, and
-   read its **File URL** from the details and its attachment number from the address
-   bar. With no browser, ask them to paste the image's link from that screen instead:
-   an image at their own site's address validates without a number.
-3. Add the attachment id, if you have one, to the profile's `media` map, then add an
-   Elementor `image` widget where they want it (see `references/widgets/core-image.md`
-   for its controls).
+1. Check what CRE Cloud keeps: `crecs_preview.py capabilities --base <site>`, and read its
+   line about logos. When the company logo is there, add an Elementor `image` widget where
+   they want it and bind its picture to the company logo (the commands are in *The
+   client's own logo*; `references/widgets/core-image.md` lists the image widget's
+   controls for its size and alignment). There is nothing to upload and nothing for them
+   to find. Tell them in one plain sentence that it follows any change they make in CRE
+   Cloud by itself, within about ten minutes (longer if their site keeps its pages in a
+   cache).
+2. **Only when CRE Cloud has no company logo, or does not say**, use a file instead, and
+   say it is a copy that a later change in CRE Cloud will not reach:
+   1. Open **Media → Add New** for them and ask them to drag their logo file onto that
+      page — choosing a file on their own computer is the one part you cannot do — and to
+      tell you when it has finished.
+   2. Find it yourself. In the browser, open **Media**, click the file they uploaded, and
+      read its **File URL** from the details and its attachment number from the address
+      bar. With no browser, ask them to paste the image's link from that screen instead:
+      an image at their own site's address validates without a number.
+   3. Add the attachment id, if you have one, to the profile's `media` map, then add an
+      Elementor `image` widget where they want it (see `references/widgets/core-image.md`
+      for its controls).
 
 Do not upload files to their site yourself and do not hotlink a logo from another
 website.
 
-**No logo yet?** Offer a simple text logo: their company name as a heading in the
-style's heading font and their primary color. Suggest a designer for a proper logo
-later. Never draw or imitate another company's logo.
+**No logo yet?** When CRE Cloud has none either, offer a simple text logo: their company
+name as a heading in the style's heading font and their primary color. Suggest a designer
+for a proper logo later. Never draw or imitate another company's logo.
 
 ### 9. Where to start from
 
@@ -479,6 +492,110 @@ The custom styling in the styles is part of the shipped design, so changing it i
 ordinary edit. Do not add new custom styling to other blocks unless the person asks for
 something the regular controls cannot do and agrees to it (see *What you can and cannot
 change*).
+
+## The client's own logo
+
+CRE Cloud keeps the client's logos: the **company logo** (the one in the company's
+settings there) and a **flyer logo** (the one on their flyer design there). A page or a
+flyer can *show* one of them instead of a copy. Nothing is uploaded to the website, and
+when the person changes the logo in CRE Cloud, everything that shows it changes by
+itself. A file uploaded to the website is a copy that keeps showing the old logo until
+someone replaces it. So **for a logo, use the one in CRE Cloud first, and a file only
+when it is not there.** That holds in every kind of page: the property page, any other
+Elementor page, the search page and the flyer.
+
+**Look before you offer it.** Ask the site what CRE Cloud keeps:
+
+```
+python3 scripts/crecs_preview.py capabilities --base <site>
+```
+
+and read its line about logos:
+
+- **Both available, or one only** (the line says which): use what is there. Say in one
+  plain sentence that it follows any change they make in CRE Cloud by itself, and when: a
+  page within about ten minutes (longer if the site keeps its pages in a cache), a flyer
+  when it is sent again or when the plugin refreshes it by itself, which it does for only
+  a few flyers a day. Never ask them to upload a file for a logo CRE Cloud has.
+- **None**: CRE Cloud has no logo for the site. Say so plainly. They can add theirs in
+  CRE Cloud and you use it once it is there, or you fall back to a file from their
+  computer (step 8, *Logo*), which is a copy.
+- **Not known**, or no line about logos at all (the site's plugin is older): say you
+  could not confirm it and fall back to a file. If they would rather have the one in CRE
+  Cloud, you can still try it and look at the preview: a logo CRE Cloud does not have
+  shows nothing, never a broken picture.
+
+> Your logo is already saved in CRE Cloud, so I'll use that one. Nothing has to be
+> uploaded, and if you ever change your logo in CRE Cloud, this page will show the new
+> one by itself within about ten minutes.
+
+> I couldn't find a logo saved in CRE Cloud for your website, so let's use a file from
+> your computer instead. If you add your logo in CRE Cloud later, I can switch the page
+> over to it.
+
+Then, by kind of page:
+
+**The property page, or any other Elementor page.** The logo is an Elementor `image`
+widget whose picture is bound to one of two CRE Cloud tags, "CRE Cloud: Company logo" or
+"CRE Cloud: Flyer logo". The template keeps the tag, never an address.
+
+```
+python3 scripts/crecs_template.py add-widget --workdir ./crecs-work --widget image \
+    --into <column> --index 0
+python3 scripts/crecs_template.py bind --workdir ./crecs-work --element <the new widget> \
+    --control image --tag crecs-company-logo --decision "The logo follows CRE Cloud."
+```
+
+`--tag crecs-flyer-logo` binds the flyer logo instead. Neither takes a `--param`: the
+command writes the form Elementor needs, and refuses a tag that does not exist, a control
+that is not a picture, or a `--param`. `catalog --tags` lists the tags, `bind --list`
+shows them by name and `validate` checks them. The widget's size and alignment are its
+own controls (`references/widgets/core-image.md`). Record the choice in `--decision`, so
+the next session knows the logo is not a file.
+
+**The search page.** A **Logo** block, added where they want it: in the page, the main
+area, the results area or a box, never in the filters (the plugin refuses that).
+
+```
+python3 scripts/crecs_search.py add-block --block crecs_search_logo --into <the page or a box>
+python3 scripts/crecs_search.py set --node <the logo> --key source --value flyer_logo
+python3 scripts/crecs_search.py set --node <the logo> --key height --value 80
+```
+
+`source` is the company logo unless it says `flyer_logo`; `height` is 16 to 300 pixels (60
+unless set) and the width follows the picture; `logo_text_align` puts it at the left, the
+middle or the right. It can repeat, for example one for computers and another for phones,
+each hidden on the devices it is not for. With no logo of that kind in CRE Cloud it shows
+nothing and keeps no room. `remove-block` takes one off. The pin image on the map is a
+different thing: a picture from their media library used as the map's pin, and so a copy.
+
+**The flyer.** The Logo block's `source` takes the company logo (`company_logo`) or the
+flyer logo (`flyer_logo`), besides the site's own logo and a media library image
+(*The flyer*).
+
+```
+python3 scripts/crecs_flyer.py set --node <the logo> --key source --value company_logo
+```
+
+The flyer logo is the logo of the property's own flyer design in CRE Cloud when it has
+one, otherwise the site's default flyer design's. **Only a PNG, JPEG or GIF can be
+used**: a logo of another kind, an SVG for one, is left out, and nothing else says so. The
+300 KB and 3000-pixel limits of an uploaded picture do not apply to these two, and they
+count toward the two logos a design may have. A flyer shows a changed logo the next time
+it is made again: when it is sent again (give it about ten minutes after the change, as
+the plugin remembers a logo that long), or when the plugin refreshes it by itself, which
+it does for only a few flyers a day, the oldest first, and only when the site's
+scheduler runs. So a flyer nobody sends again can keep the old logo for a while.
+
+**When a logo kept in CRE Cloud does not show**, nothing is broken, and the fix is never
+a file on the website. Either CRE Cloud has no logo of that kind (the line about logos
+says so, or they can look in CRE Cloud's settings), or it is a kind a flyer cannot
+print. Say so plainly and that they change it in CRE Cloud, which is theirs to do, not
+yours; a page follows within about ten minutes, and a flyer when it is next made.
+
+> The flyer can't print your logo as it is saved in CRE Cloud: it needs a PNG, JPEG or
+> GIF picture. If you change it there, the flyer will pick it up the next time it is sent,
+> or when the plugin refreshes it, which it does for a few flyers a day.
 
 ## When the browser won't connect
 
@@ -702,7 +819,10 @@ crecs_template.py bind --workdir ./crecs-work --element 31338650 \
     --control title --param property_name
 ```
 
-See *Binding property data* below for what can and cannot be bound.
+See *Binding property data* below for what can and cannot be bound. The client's logos are
+bound the same way, with a tag that takes no field in place of `--param`: `--control image
+--tag crecs-company-logo` on an image widget (*The client's own logo*; `catalog --tags`
+lists the tags).
 
 ### Retarget a contact popup
 
@@ -856,6 +976,13 @@ python3 scripts/crecs_search.py show --file ./search.json
 - **Look**: colours, fonts, sizes, borders, corners, shadows and mouse-over colours of
   the filters, the buttons, the cards, the headings, the sort and the view buttons.
 - **The map's height**, per device.
+- **Their logo**: the company logo or the flyer logo kept in CRE Cloud, where they want it
+  on the page (above everything, beside the heading, over the results), how tall, and at the
+  left, the middle or the right; one for computers and another for phones if they like. It
+  follows a change they make in CRE Cloud by itself, within about ten minutes (longer if the
+  site keeps its pages in a cache), and shows
+  nothing when CRE Cloud has no such logo (*The client's own logo*). It is not the map's pin:
+  the pin takes a picture from their media library, which is a copy.
 - **Texts**: the filter buttons' labels, the placeholders, the sort options, Clear,
   Deal Room.
 - **Hiding**, per device: one filter, the Clear button, the map on tablets and phones,
@@ -940,7 +1067,9 @@ type's.**
 - **A drawn pin** (`pin_shape`: `pin`, `circle`, `square` or `building`) takes
   `pin_color` and `pin_accent_color`, the dot, ring, inner square or building on it,
   written `#rrggbb`. Unset, red with white.
-- **An image** (`pin_image`) is the number of an image in their media library. Open
+- **An image** (`pin_image`) is the number of an image in their media library. It is a
+  copy: a logo used as a pin does not follow a change made in CRE Cloud (the logo kept
+  there has its own Logo block, *The client's own logo*). Open
   **Media → Add New** for them and ask them to drag the file onto it — choosing a file on
   their own computer is the one part you cannot do — then find its number yourself:
   `crecs_preview.py media --search <words of its name> --session-file <file>` lists the
@@ -1073,7 +1202,7 @@ crecs_search.py show                    the tree, with each block's id
 crecs_search.py show --node <id>        one block: its settings, its parts, its texts
 crecs_search.py controls --node <id> --match color     the settings it takes
 crecs_search.py set --node <id> --key <setting> --value <value> [--device tablet|mobile] [--hover]
-crecs_search.py unset | text | move | add-box | remove-box | hide | unhide | validate
+crecs_search.py unset | text | move | add-box | remove-box | add-block | remove-block | hide | unhide | validate
 crecs_preview.py apply --document ./search.json --session-file <file>
 crecs_preview.py options --session-file <file>          the site's property types and brokers
 crecs_preview.py media --session-file <file> [--search <words>]   the site's images, by number
@@ -1256,9 +1385,11 @@ person asks for them.
   rates… which ones, in what order, in how many columns); highlights; the description, up
   to a length; the table of suites (see below); the contacts, meaning the brokers on
   the listing (photo, name, title, phone, mobile, email; stacked or side by side); the
-  map (a street map or a satellite picture: *The flyer's map*); the logo (the site's own,
-  or an image from their media library; at most two logos in the whole design, see *What it
-  can never do*); the company's name, phone and email; their own text; the disclaimer; a
+  map (a street map or a satellite picture: *The flyer's map*); the logo (the
+  company logo or the flyer logo kept in CRE Cloud, which follow any change made there,
+  see *The client's own logo*; the site's own; or an image from their media library; at
+  most two logos in the whole design, see *What it can never do*); the company's name,
+  phone and email; their own text; the disclaimer; a
   dividing line; blank space.
 - **More about the property, each a block of its own**, put on a page like any other:
   - **Features**: the details the property has in CRE Cloud, as rows of a label and its
@@ -1365,13 +1496,15 @@ CRE Cloud's warnings about the map come in words, one line each. Pass them on pl
   can ask for them. A colour with see-through written as `#rrggbbaa` is ignored by it;
   `rgba()` works.
 - **No SVG logo**: only PNG, JPEG and GIF pictures print.
-- **At most two logos in a design, each a picture of about 300 KB or less.** Every logo is
-  printed again on each page of its band and inside both attachment frames, so more than two
-  would make what is sent to CRE Cloud too large: the design is refused when it has a third
-  (`add` refuses it too). A picture over about 300 KB, or over 3000 × 3000 pixels, is left
-  out of the preview and of the PDF: where the logo should be, the page shows nothing, and
-  nothing else says so. When a logo is missing on a page picture, look for this first (*Things
-  to know*) and ask them for a smaller picture.
+- **At most two logos in a design.** Every logo is printed again on each page of its band and
+  inside both attachment frames, so more than two would make what is sent to CRE Cloud too
+  large: the design is refused when it has a third (`add` refuses it too), whatever the
+  logos show, the two kept in CRE Cloud included. An uploaded picture (the site's own logo
+  or one from the media library) must be about 300 KB or less and at most 3000 × 3000
+  pixels: a bigger one is left out of the preview and of the PDF, where the logo should be
+  the page shows nothing, and nothing else says so. The logos kept in CRE Cloud have no such
+  size limit, but must be PNG, JPEG or GIF. When a logo is missing on a page picture, look
+  for this first (*Things to know*).
 
 **Anything else**, do not promise it and do not imitate it: say the flyer cannot do it yet
 and note the request. Never fake one thing with another — a white block laid over text to
@@ -1443,7 +1576,7 @@ After a change, or a few that belong together:
    - blocks that show nothing: a photo the property does not have, facts, features,
      traffic counts or demographics it lacks, a map that is missing, or is the street map where a
      satellite one was designed (the warnings say it), a logo whose picture
-     is too big (see *Things to know*);
+     is too big, or a logo kept in CRE Cloud that cannot print (see *Things to know*);
    - text too small to read, colours that do not stand out from each other, a font that
      is not the one asked for;
    - the header and footer on every designed page that should have them;
@@ -1491,17 +1624,27 @@ next edit, because your file is a step ahead.
   show fewer rows or give the table more room, never a smaller font to squeeze it in.
 - **A photo block shows one of the property's photos by its place in the list**: a property
   with fewer photos shows nothing there.
-- **A logo's picture has to be small enough, or it is left out.** A logo prints only as a
-  PNG, JPEG or GIF of about 300 KB or less and at most 3000 × 3000 pixels, taken from the
-  media library (the site's own logo is the one set under Appearance → Customize → Site
-  Identity). Anything else — a bigger file, an SVG, a picture no longer in the library, a
-  site with no logo set — is left out of the preview and of the PDF, and nothing in the
-  summary says so: the page just shows nothing there. When a page picture lacks a logo the
-  design has, tell the person, and ask them to upload a smaller picture to their media
-  library (a PNG or JPEG, cropped close to the logo and saved at a normal size). Then
-  `crecs_preview.py media --search <words>` finds its number, and you point the logo at
-  that picture. The design has at most two logos; if the site still answers that the design
-  carries too much image data, a logo is still too big: use a smaller one.
+- **A logo's picture has to be small enough, or it is left out.** A logo from the site
+  prints only as a PNG, JPEG or GIF of about 300 KB or less and at most 3000 × 3000 pixels,
+  taken from the media library (the site's own logo is the one set under Appearance →
+  Customize → Site Identity). Anything else — a bigger file, an SVG, a picture no longer in
+  the library, a site with no logo set — is left out of the preview and of the PDF, and
+  nothing in the summary says so: the page just shows nothing there. When a page picture
+  lacks a logo the design has, tell the person, and ask them to upload a smaller picture to
+  their media library (a PNG or JPEG, cropped close to the logo and saved at a normal
+  size). Then `crecs_preview.py media --search <words>` finds its number, and you point the
+  logo at that picture. The design has at most two logos; if the site still answers that
+  the design carries too much image data, a logo is still too big: use a smaller one.
+- **A logo kept in CRE Cloud is not a file on the site, so a file is never the fix.** The
+  company logo and the flyer logo (*The client's own logo*) print only as a PNG, JPEG or
+  GIF; one of another kind, an SVG for one, is left out like any other that cannot print,
+  and so is one CRE Cloud does not have. Do not ask the person to upload a smaller picture
+  for it: say that it needs a PNG, JPEG or GIF and that they change it in CRE Cloud. The
+  flyer shows the new logo the next time it is made again, which is when it is sent again
+  or when the plugin refreshes it by itself (a few flyers a day); the exact PDF (`pdf`) is
+  where to look for it. Which flyer logo a
+  property gets is CRE Cloud's choice, not the design's: the logo of that property's own
+  flyer design when it has one, otherwise the site's default one.
 - **The preview lasts about a day.** When it stops answering, follow *When the preview
   stops answering* and `apply` your last saved design to the new one: nothing of the design
   is lost, because the file is yours.
@@ -1531,8 +1674,9 @@ site** or **Use it only for this property**, then the yes in the bar.
 **Help them choose before they press**, in plain words:
 
 - **The whole site** is the usual choice. This design becomes the design every property
-  of the site uses, from now on. CRE Cloud rebuilds the flyers of the properties that
-  already have one every day, so those change within a day, not at once.
+  of the site uses, from now on. The plugin refreshes the flyers of the properties that
+  already have one by itself, a few every day, the oldest first, so those change over the
+  next days, not at once.
 - **Only for this property** gives that property its own design; every other property
   keeps the site's design. A property with its own design can later go back to the site's
   design: that is a person's choice in WordPress, in the plugin's list of designed
@@ -1684,6 +1828,11 @@ usually a core `heading`'s `title` or a `button`'s `link`:
   strings and numbers, so booleans and collections (`suites`, `rates`, `team_members`,
   `photos`, …) never appear even though they exist. Those collections are what the
   `crecs_property_*` widgets render; bind the widget, not the field.
+- Two other tags put the client's logos into a picture, `crecs-company-logo` and
+  `crecs-flyer-logo`. They take no `param_name`; their binding is saved with an empty
+  settings string, `settings="%7B%7D"`, because Elementor gives an empty value to a tag saved
+  without one. The validator checks them: the name, the empty settings, and that the control
+  takes a picture (*The client's own logo*).
 - Never use the `crecs-test` tag. It exposes `$_SERVER` unescaped on the public page.
 
 ## Responsiveness
@@ -1726,9 +1875,10 @@ every widget after it is removed, so it can always come back.
 
 - **ERROR** blocks a ready export. An invented control key, a value outside a closed
   vocabulary, a device variant of a flat control, a corrupted binding, a `param_name`
-  that does not exist, a duplicate element id, bad nesting, more instances than a
-  widget supports, an unresolved site dependency, anything shaped like a credential,
-  or the example property frozen in.
+  that does not exist, a CRE Cloud tag that does not exist or sits on a control of
+  another kind (a logo tag on text), a duplicate element id, bad nesting, more instances
+  than a widget supports, an unresolved site dependency, anything shaped like a
+  credential, or the example property frozen in.
 - **WARNING** does not block. A key from an older plugin version (the report names the
   control that replaced it), an unknown key that was already in the document, a
   cross-site asset, a relevant widget missing, an option value Elementor has since

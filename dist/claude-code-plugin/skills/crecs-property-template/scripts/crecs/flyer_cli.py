@@ -346,14 +346,20 @@ class Editor:
                 "value": value, "message": message}
 
     def _logo_companions(self, node, settings, name, value):
-        """A logo's image and its source change together: one alone is always refused."""
+        """A logo's image and its source change together: one alone is always refused. A logo
+        has four sources: the site's own, a media library image (the only one with a media_id),
+        and the company logo and flyer logo that CRE Cloud keeps."""
         if name == "media_id":
             settings["source"] = "media"
             return "%s: shows the media library image %s (source media, media_id %s)." % (
                 self.describe(node), value, value)
         if name == "source" and value != "media":
             settings.pop("media_id", None)
-            return "%s: shows the site's own logo." % self.describe(node)
+            shows = {"company_logo": "the company logo kept in CRE Cloud, which follows any change "
+                                     "made there",
+                     "flyer_logo": "the flyer logo kept in CRE Cloud, which follows any change "
+                                   "made there"}.get(value, "the site's own logo")
+            return "%s: shows %s." % (self.describe(node), shows)
         if name == "source" and self.vocab.option(node, "media_id") is None:
             raise Usage("%s: give the image instead, and the source changes with it: set --node %s "
                         "--key media_id --value <number> (crecs_preview.py media lists the images)"
@@ -676,7 +682,9 @@ def build_parser():
     p.add_argument("--match", help="only settings whose name contains this")
 
     p = add("set", "Set one setting on one block. On a row, --key widths sets every column's "
-                   "width at once; on a logo, --key media_id also makes the source the media library.")
+                   "width at once; on a logo, --key source says which logo it shows (site_logo, media, "
+                   "company_logo or flyer_logo, the last two kept in CRE Cloud) and --key media_id "
+                   "also makes the source the media library.")
     p.add_argument("--node", required=True)
     p.add_argument("--key", required=True, help="the setting, e.g. name_color, height, fields")
     p.add_argument("--value", required=True,

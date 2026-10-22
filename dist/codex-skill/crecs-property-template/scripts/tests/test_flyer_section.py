@@ -569,7 +569,8 @@ class FlyerSection(unittest.TestCase):
         part = self.sending()
         whole = part[part.index("whole site"):]
         for phrase in ("from now on", "every property of the site",
-                       "rebuilds the flyers of the properties that already have one every day"):
+                       "refreshes the flyers of the properties that already have one by itself",
+                       "a few every day, the oldest first", "over the next days, not at once"):
             self.assertIn(phrase, whole, "the whole-site choice does not say: " + phrase)
         for phrase in ("its own design", "every other property keeps the site's design",
                        "go back to the site's design"):

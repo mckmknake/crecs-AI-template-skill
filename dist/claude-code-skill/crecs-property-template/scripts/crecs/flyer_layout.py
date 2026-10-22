@@ -491,10 +491,14 @@ class Vocabulary:
                         '%s "source" is "media", so it needs "media_id", the number of an image in '
                         "the media library." % block_type))
             elif media is not None:
+                # The logo shows what its source says (the site logo when the source is unset or
+                # refused): the plugin words the refusal by which one that is.
+                shows = {"company_logo": "the company logo kept in CRE Cloud",
+                         "flyer_logo": "the flyer logo kept in CRE Cloud"}
                 out.append(_finding(
                     "E-FL-VALUE", node_id,
-                    '%s "media_id" is used only when "source" is "media"; the logo now shows the '
-                    "site logo." % block_type))
+                    '%s "media_id" is used only when "source" is "media"; the logo now shows %s.'
+                    % (block_type, shows.get(self.option(node, "source"), "the site logo"))))
             return
 
         # CRE Cloud draws a property's boundaries only on an aerial picture, and refuses a

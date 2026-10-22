@@ -1842,6 +1842,192 @@ class CapabilitiesSay(Base):
         self.assertEqual(0, code)
         self.assertEqual(["road", "hybrid"], json.loads(out)["flyer_map_types"])
 
+    # -- the client's logos kept in CRE Cloud (brand_logos) ----------------------------------
+
+    def brand_line(self, value):
+        self.site.routes.clear()
+        code, out, err = self.caps(brand_logos=value)
+        self.assertEqual(0, code, err)
+        lines = [l for l in out.splitlines() if l.startswith("brand_logos")]
+        self.assertEqual(1, len(lines), "one line for the logos, in words, never also a raw value:\n" + out)
+        return lines[0]
+
+    def test_a_site_whose_cre_cloud_keeps_both_logos_says_a_template_can_use_them_and_how_they_follow_changes(self):
+        line = self.brand_line({"company": True, "flyer": True})
+        self.assertIn("available", line)
+        self.assertIn("company logo", line)
+        self.assertIn("flyer logo", line)
+        for how in ("by itself", "ten minutes", "keeps its pages in a cache", "sent again",
+                    "refreshes it by itself", "a few flyers a day"):
+            self.assertIn(how, line, "it does not say how a changed logo reaches a page and a flyer")
+        for promise in ("daily refresh", "within a day", "once a day"):
+            self.assertNotIn(promise, line, "it promises what the plugin does not do: " + promise)
+        for raw in ("True", "true", "{", "company'", '"company"'):
+            self.assertNotIn(raw, line, "a raw value was printed in place of words")
+        for other in ("not known", "none", "only"):
+            self.assertNotIn(other, line)
+
+    def test_one_logo_available_says_which_and_that_the_other_is_not_kept(self):
+        company = self.brand_line({"company": True, "flyer": False})
+        flyer = self.brand_line({"company": False, "flyer": True})
+        self.assertIn("company logo only", company)
+        self.assertIn("no flyer logo", company)
+        self.assertIn("flyer logo only", flyer)
+        self.assertIn("no company logo", flyer)
+        for line in (company, flyer):
+            self.assertIn("upload", line, "it does not say what to use for the logo CRE Cloud lacks")
+            self.assertNotIn("not known", line)
+
+    def test_neither_logo_says_so_and_points_at_the_upload(self):
+        line = self.brand_line({"company": False, "flyer": False})
+        self.assertIn("none", line)
+        self.assertIn("neither", line)
+        self.assertIn("upload", line)
+        self.assertNotIn("available", line)
+        self.assertNotIn("not known", line)
+
+    def test_a_site_that_does_not_know_says_so_in_other_words_than_none(self):
+        for value in (None, "yes", [], {}, {"company": None, "flyer": None}, {"company": "yes", "flyer": 1}):
+            with self.subTest(value=value):
+                line = self.brand_line(value)
+                self.assertIn("not known", line)
+                self.assertIn("upload", line)
+                self.assertNotIn("None", line)
+                self.assertNotIn("neither", line)
+        self.assertNotEqual(self.brand_line(None), self.brand_line({"company": False, "flyer": False}))
+
+    def test_one_logo_known_and_the_other_not_says_each(self):
+        line = self.brand_line({"company": True, "flyer": None})
+        self.assertIn("company logo available", line)
+        self.assertIn("flyer logo not known", line)
+        line = self.brand_line({"company": None, "flyer": False})
+        self.assertIn("company logo not known", line)
+        self.assertIn("flyer logo none kept", line)
+
+    def test_every_state_is_worded_differently(self):
+        said = {self.brand_line(v) for v in (
+            {"company": True, "flyer": True}, {"company": True, "flyer": False},
+            {"company": False, "flyer": True}, {"company": False, "flyer": False}, None,
+            {"company": True, "flyer": None}, {"company": None, "flyer": False})}
+        self.assertEqual(7, len(said))
+
+    def test_an_older_plugin_says_nothing_about_logos(self):
+        code, out, _err = self.caps()
+        self.assertEqual(0, code)
+        self.assertNotIn("brand_logos", out)
+
+    def test_the_logos_line_is_beside_the_others_and_json_keeps_the_raw_answer(self):
+        _code, out, _err = self.caps(flyer_pdf={"available": True}, flyer_send={"available": True},
+                                     flyer_map_types=["road"], brand_logos={"company": True, "flyer": False})
+        for key in ("flyer_pdf", "flyer_send", "flyer_map_types", "brand_logos"):
+            self.assertIn(key, out)
+        self.site.routes.clear()
+        self.site.on("GET", "/capabilities", 200, dict(self.CAPS, brand_logos={"company": True, "flyer": None}))
+        code, out, _err = self.run_cli(["capabilities", "--base", self.site.base, "--json"])
+        self.assertEqual(0, code)
+        self.assertEqual({"company": True, "flyer": None}, json.loads(out)["brand_logos"])
+
+    # -- the session `capabilities` sends ----------------------------------------------------
+    #
+    # The plugin asks CRE Cloud for the logos only for someone it knows may edit templates, and
+    # a command with a base address and no login is a stranger to it: it would always answer
+    # "not known". The saved session is what tells it who is asking.
+
+    def sent(self):
+        return self.site.asked("GET", "/capabilities")
+
+    def test_with_a_saved_session_it_sends_the_session_so_the_site_can_say_what_it_keeps(self):
+        self.save_session("preview-127.0.0.1.json", "ps_prop", TOKEN_PROPERTY)
+        code, out, err = self.caps(brand_logos={"company": True, "flyer": False})
+        self.assertEqual(0, code, err)
+        sent = self.sent()
+        self.assertEqual(1, len(sent), "one request")
+        self.assertEqual("Bearer " + TOKEN_PROPERTY, sent[0]["auth"], "the session's token, as a bearer")
+        self.assertEqual({"id": "ps_prop"}, sent[0]["query"], "and its id")
+        self.assertIn("brand_logos", out)
+        self.no_token(out, err)
+
+    def test_json_output_with_a_session_still_prints_no_token(self):
+        self.save_session("preview-127.0.0.1.json", "ps_prop", TOKEN_PROPERTY)
+        self.site.on("GET", "/capabilities", 200, dict(self.CAPS, brand_logos={"company": True, "flyer": True}))
+        code, out, err = self.run_cli(["capabilities", "--base", self.site.base, "--json"])
+        self.assertEqual(0, code, err)
+        self.assertEqual("Bearer " + TOKEN_PROPERTY, self.sent()[0]["auth"])
+        self.no_token(out, err)
+
+    def test_with_no_saved_session_it_sends_what_it_always_did_and_nothing_more(self):
+        code, _out, err = self.caps(brand_logos={"company": None, "flyer": None})
+        self.assertEqual(0, code, err)
+        sent = self.sent()
+        self.assertEqual([None], [r["auth"] for r in sent], "no credential")
+        self.assertEqual([{}], [r["query"] for r in sent], "no session id")
+
+    def test_a_folder_with_only_a_session_of_another_site_sends_nothing(self):
+        # A session's token is for the site that issued it: never sent to another.
+        data = {"base": "https://other.example", "id": "ps_other", "token": TOKEN_SEARCH}
+        (self.sessions / "preview-other.example.json").write_text(json.dumps(data), encoding="utf-8")
+        code, out, err = self.caps()
+        self.assertEqual(0, code, err)
+        self.assertEqual([None], [r["auth"] for r in self.sent()])
+        self.assertEqual([{}], [r["query"] for r in self.sent()])
+        self.no_token(out, err)
+
+    def test_with_more_than_one_saved_session_it_still_sends_one_and_does_not_ask_which(self):
+        self.save_session("preview-127.0.0.1.json", "ps_prop", TOKEN_PROPERTY)
+        self.save_session("preview-127.0.0.1-search.json", "ps_search", TOKEN_SEARCH, "search")
+        self.save_session("preview-127.0.0.1-flyer.json", "ps_flyer", TOKEN_FLYER, "flyer")
+        code, out, err = self.caps()
+        self.assertEqual(0, code, err)
+        sent = self.sent()
+        self.assertEqual(1, len(sent))
+        tokens = {"ps_prop": TOKEN_PROPERTY, "ps_search": TOKEN_SEARCH, "ps_flyer": TOKEN_FLYER}
+        self.assertIn(sent[0]["query"].get("id"), tokens, "a saved session's id")
+        self.assertEqual("Bearer " + tokens[sent[0]["query"]["id"]], sent[0]["auth"], "with that session's own token")
+        self.assertNotIn("more than one", err, "it must not stop to ask which: any of them says who is asking")
+        self.no_token(out, err)
+
+    def test_kind_picks_the_session_of_that_kind(self):
+        self.save_session("preview-127.0.0.1.json", "ps_prop", TOKEN_PROPERTY)
+        self.save_session("preview-127.0.0.1-flyer.json", "ps_flyer", TOKEN_FLYER, "flyer")
+        self.site.on("GET", "/capabilities", 200, dict(self.CAPS))
+        code, _out, err = self.run_cli(["capabilities", "--base", self.site.base, "--kind", "flyer"])
+        self.assertEqual(0, code, err)
+        self.assertEqual(["Bearer " + TOKEN_FLYER], [r["auth"] for r in self.sent()])
+        self.assertEqual([{"id": "ps_flyer"}], [r["query"] for r in self.sent()])
+
+    def test_session_file_names_the_session_to_send(self):
+        mine = self.save_session("mine.json", "ps_mine", TOKEN_SEARCH, "search")
+        self.save_session("preview-127.0.0.1.json", "ps_prop", TOKEN_PROPERTY)
+        self.site.on("GET", "/capabilities", 200, dict(self.CAPS))
+        code, _out, err = self.run_cli(["capabilities", "--base", self.site.base, "--session-file", str(mine)])
+        self.assertEqual(0, code, err)
+        self.assertEqual(["Bearer " + TOKEN_SEARCH], [r["auth"] for r in self.sent()])
+        self.assertEqual([{"id": "ps_mine"}], [r["query"] for r in self.sent()])
+
+    def test_a_session_file_of_another_site_is_not_sent_here_and_the_command_still_answers(self):
+        data = {"base": "https://other.example", "id": "ps_other", "token": TOKEN_SEARCH}
+        path = self.sessions / "elsewhere.json"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        self.site.on("GET", "/capabilities", 200, dict(self.CAPS))
+        code, out, err = self.run_cli(["capabilities", "--base", self.site.base, "--session-file", str(path)])
+        self.assertEqual(0, code, err)
+        self.assertEqual([None], [r["auth"] for r in self.sent()], "the token must not go to a site that did not issue it")
+        self.assertIn("other.example", err, "it should say why the session was left out")
+        self.no_token(out, err)
+
+    def test_a_session_file_that_is_not_there_is_an_error_like_it_is_for_the_other_commands(self):
+        code, _out, err = self.run_cli(["capabilities", "--base", self.site.base,
+                                        "--session-file", str(self.sessions / "nope.json")])
+        self.assertEqual(3, code)
+        self.assertIn("not found", err)
+        self.assertEqual([], self.sent())
+
+    def test_a_saved_file_that_cannot_be_read_is_ignored_when_it_was_not_asked_for(self):
+        (self.sessions / "preview-127.0.0.1.json").write_text("{not json", encoding="utf-8")
+        code, _out, err = self.caps()
+        self.assertEqual(0, code, err)
+        self.assertEqual([None], [r["auth"] for r in self.sent()])
+
 
 # ---------------------------------------------------------------------------------------
 # the map warnings, worded by the one function both commands use

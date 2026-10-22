@@ -31,14 +31,19 @@ _ATTR = re.compile(
 class Tag:
     """One parsed dynamic tag. ``error`` is None when every stage succeeded."""
 
-    __slots__ = ("raw", "name", "instance_id", "settings", "error")
+    __slots__ = ("raw", "name", "instance_id", "settings", "error", "has_settings")
 
-    def __init__(self, raw, name=None, instance_id=None, settings=None, error=None):
+    def __init__(self, raw, name=None, instance_id=None, settings=None, error=None,
+                 has_settings=True):
         self.raw = raw
         self.name = name
         self.instance_id = instance_id
         self.settings = settings if settings is not None else {}
         self.error = error
+        # False when the shortcode carries no `settings` attribute at all. The parser
+        # reads that as empty settings, but Elementor gives an empty value to such a tag,
+        # even one that takes no settings: "{}" and nothing are different things.
+        self.has_settings = has_settings
 
     def __repr__(self):  # pragma: no cover - debugging aid
         return "Tag(name=%r, settings=%r, error=%r)" % (
@@ -93,7 +98,7 @@ def parse_tag(raw):
                          "characters" % instance_id)
 
     if "settings" not in attrs:
-        return Tag(raw, name=name, instance_id=instance_id, settings={})
+        return Tag(raw, name=name, instance_id=instance_id, settings={}, has_settings=False)
 
     encoded = attrs["settings"]
     try:

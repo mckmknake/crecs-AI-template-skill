@@ -25,8 +25,8 @@ The preview and Publish refuse a document with any of these, and the live page f
 | `E-SL-BLOCK` | a `widgetType` the plugin does not have |
 | `E-SL-ELTYPE` | a block given the wrong `elType` |
 | `E-SL-CHILDREN` | a widget holding other blocks |
-| `E-SL-REQUIRED` | a block the page needs is missing: every block but the error notice and the box is required |
-| `E-SL-ONCE` | a block that carries ids the scripts look up appears twice; only the box repeats |
+| `E-SL-REQUIRED` | a block the page needs is missing: every block but the error notice, the box and the logo is required |
+| `E-SL-ONCE` | a block that carries ids the scripts look up appears twice; only the box and the logo repeat |
 | `E-SL-WITHIN` | a filter outside the filters block: Clear resets and walks the filters form |
 | `E-SL-NOT-WITHIN` | anything but a filter or a box inside the filters block: Clear would reset it |
 | `E-SL-SETTING` | a setting the block does not have |
@@ -41,7 +41,7 @@ The preview and Publish refuse a document with any of these, and the live page f
 - `_margin`, `_padding`, `_width`, `_grow`, `_order`, each with `_tablet` and `_mobile`: the block's own box, on every block but the page. `_grow: "yes"` takes the room left; `_order` reorders it among its siblings.
 - `direction`, `wrap`, `gap`, `justify`, `align`, each with `_tablet` and `_mobile`: how a container lays out its blocks (a flex row or column). Only on containers marked *lays out*.
 - `map_height`, `map_height_tablet`, `map_height_mobile`: the map's height.
-- `_hide_desktop`, `_hide_tablet`, `_hide_mobile`: `"yes"` hides a block on that device, and on that device only. A hidden filter, map or button only stops showing: its markup stays, because the page's scripts read it, and a hidden filter still searches with whatever value it starts with. The blocks that have them: Map (`crecs_search_map`, tablet and mobile only), Keyword search (`crecs_search_filter_keyword`), For Sale / For Lease (`crecs_search_filter_category`), Property type filter (`crecs_search_filter_property_type`), Size filter (`crecs_search_filter_size`), Rate/price filter (`crecs_search_filter_rate`), Broker filter (`crecs_search_filter_broker`), Clear button (`crecs_search_filter_clear`), View buttons (`crecs_search_view_options`, desktop only), Box (`crecs_search_box`).
+- `_hide_desktop`, `_hide_tablet`, `_hide_mobile`: `"yes"` hides a block on that device, and on that device only. A hidden filter, map or button only stops showing: its markup stays, because the page's scripts read it, and a hidden filter still searches with whatever value it starts with. The blocks that have them: Map (`crecs_search_map`, tablet and mobile only), Keyword search (`crecs_search_filter_keyword`), For Sale / For Lease (`crecs_search_filter_category`), Property type filter (`crecs_search_filter_property_type`), Size filter (`crecs_search_filter_size`), Rate/price filter (`crecs_search_filter_rate`), Broker filter (`crecs_search_filter_broker`), Clear button (`crecs_search_filter_clear`), View buttons (`crecs_search_view_options`, desktop only), Logo (`crecs_search_logo`), Box (`crecs_search_box`).
 - `text_{slot}`: an editable text, printed as plain text. Empty means the page's own text.
 - `start_*` and `offer`: what the page starts with rather than how it looks (*What the page starts with*, below). They print no CSS.
 
@@ -67,7 +67,7 @@ A device inherits from the larger one unless it sets its own value: desktop firs
 | `letter_spacing` | text | `{"unit": u, "size": n}`, u one of `px`, `em`, n from -5 to 20 (at most 100 in % or vh) | desktop value applies to all |
 | `text_transform` | text | one of `none`, `uppercase`, `lowercase`, `capitalize` | desktop value applies to all |
 | `font_style` | text | one of `normal`, `italic` | desktop value applies to all |
-| `text_align` | text | one of `left`, `center`, `right` | all three |
+| `text_align` | text, align | one of `left`, `center`, `right` | all three |
 | `order` | item | a whole number from -20 to 20 | desktop value applies to all |
 | `hide` | item, toggle | `"yes"`, or empty | desktop value applies to all |
 
@@ -478,6 +478,21 @@ Parts you can style:
 - `heading` (text): `heading_color`, `heading_font_family`, `heading_font_size`, `heading_font_weight`, `heading_line_height`, `heading_letter_spacing`, `heading_text_transform`, `heading_font_style`, `heading_text_align`
 - `column_heading` (text): `column_heading_color`, `column_heading_font_family`, `column_heading_font_size`, `column_heading_font_weight`, `column_heading_line_height`, `column_heading_letter_spacing`, `column_heading_text_transform`, `column_heading_font_style`, `column_heading_text_align`
 - `link` (text, hover): `link_color`, `link_font_family`, `link_font_size`, `link_font_weight`, `link_line_height`, `link_letter_spacing`, `link_text_transform`, `link_font_style`, `link_text_align`
+
+### Logo — `crecs_search_logo`
+
+Widget, optional, repeatable.
+
+Shows the client's logo, kept in CRE Cloud, as a variable: the layout says which logo (`source`) and how tall it shows (`height`), never an address, so a logo the client changes in CRE Cloud reaches the page by itself, within about ten minutes (longer if the site keeps its pages in a cache). When CRE Cloud has no such logo, nothing shows, and the page keeps no room for it. The logo is the account's own: the company logo, or the flyer logo of the default flyer theme (no property is named). The built-in layout has no logo: add the block where the person wants it, in the page, the main area, the results area or a box, anywhere but inside the filters. It may be added more than once, one for computers and another for phones for instance, each hidden on the devices it is not for (`_hide_desktop`, `_hide_tablet`, `_hide_mobile`). The picture keeps its proportion at the height given, and `logo_text_align` puts it at the left, the middle or the right of its row; `_margin` and `_padding` give it room. Its alternative text is the company name from the plugin's settings screen, or "Logo". Any image format CRE Cloud holds is shown, SVG and WebP included.
+
+Parts you can style:
+
+- `logo` (align): `logo_text_align`
+
+Options:
+
+- `source`: which of the client's logos kept in CRE Cloud this block shows: `company_logo`, the company logo of the account, or `flyer_logo`, the logo of the account's default flyer theme; unset, `company_logo`. When CRE Cloud has no logo of that kind, nothing shows. Value: one of `company_logo`, `flyer_logo`.
+- `height`: how tall the logo shows, in pixels, whatever size its file has; its width follows its proportion and never runs past its column; unset, 60. Value: a whole number from 16 to 300.
 
 ### Box — `crecs_search_box`
 
